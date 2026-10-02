@@ -1,0 +1,19 @@
+{
+	"name": "Flutter Android Wi-Fi Debug",
+	"build": {
+		"dockerfile": "Dockerfile"
+	},
+	"customizations": {
+		"vscode": {
+			"extensions": [
+				"Dart-Code.flutter",
+				"Dart-Code.dart-code"
+			]
+		}
+	},
+	// ホストのADBサーバーと通信するためにポートをコンテナに共有する
+	"runArgs": [
+		"--net=host"
+	],
+	"postCreateCommand": "flutter doctor"
+}
