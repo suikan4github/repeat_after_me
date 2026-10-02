@@ -46,10 +46,26 @@ void main() {
       tester.widget<TextField>(find.byType(TextField)).decoration!.hintText,
       'Search names',
     );
+  });
+
+  testWidgets('opens the drawer and closes after selecting the current page',
+      (WidgetTester tester) async {
+    tester.platformDispatcher.localesTestValue = const [Locale('en', 'US')];
+    addTearDown(tester.platformDispatcher.clearLocalesTestValue);
+
+    await tester.pumpWidget(const MyApp());
+    await tester.pumpAndSettle();
 
     await tester.tap(find.byTooltip('Open navigation menu'));
     await tester.pumpAndSettle();
     expect(find.text('Main page'), findsOneWidget);
+    final mainPageTile = tester.widget<ListTile>(
+      find.ancestor(
+        of: find.text('Main page'),
+        matching: find.byType(ListTile),
+      ),
+    );
+    expect(mainPageTile.selected, isTrue);
 
     await tester.tap(find.text('Main page'));
     await tester.pumpAndSettle();
