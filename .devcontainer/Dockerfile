@@ -35,7 +35,7 @@ RUN mkdir -p ${ANDROID_HOME}/cmdline-tools && \
 
 # Android SDKライセンスの承諾と、必要なコンポーネントのインストール
 RUN yes | sdkmanager --licenses && \
-    sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0" "ndk;27.0.12077973"
+    sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0" "ndk;26.3.11579264"
 
 # Flutter SDKのインストール
 ENV FLUTTER_HOME=/usr/local/flutter
