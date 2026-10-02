@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:repeat_after_me/l10n/generated/app_localizations.dart';
+import 'package:repeat_after_me/widgets/app_navigation_drawer.dart';
 
 class AudioLibraryPage extends StatefulWidget {
   const AudioLibraryPage({super.key});
@@ -49,6 +50,7 @@ class _AudioLibraryPageState extends State<AudioLibraryPage> {
     final colors = Theme.of(context).colorScheme;
     final l10n = AppLocalizations.of(context)!;
     return Scaffold(
+      drawer: AppNavigationDrawer(selectedDestination: AppDestination.main),
       appBar: AppBar(
         title: Text(
           l10n.appTitle,

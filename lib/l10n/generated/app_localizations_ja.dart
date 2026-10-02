@@ -15,6 +15,9 @@ class AppLocalizationsJa extends AppLocalizations {
   String get audioLibraryTitle => '音声ライブラリ';
 
   @override
+  String get mainPage => 'メインページ';
+
+  @override
   String get searchHint => '名前を検索';
 
   @override

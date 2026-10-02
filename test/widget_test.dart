@@ -25,6 +25,10 @@ void main() {
       tester.widget<TextField>(find.byType(TextField)).decoration!.hintText,
       '名前を検索',
     );
+
+    await tester.tap(find.byIcon(Icons.menu));
+    await tester.pumpAndSettle();
+    expect(find.text('メインページ'), findsOneWidget);
   });
 
   testWidgets('uses English for non-Japanese system locales', (
@@ -42,5 +46,13 @@ void main() {
       tester.widget<TextField>(find.byType(TextField)).decoration!.hintText,
       'Search names',
     );
+
+    await tester.tap(find.byTooltip('Open navigation menu'));
+    await tester.pumpAndSettle();
+    expect(find.text('Main page'), findsOneWidget);
+
+    await tester.tap(find.text('Main page'));
+    await tester.pumpAndSettle();
+    expect(find.text('Main page'), findsNothing);
   });
 }

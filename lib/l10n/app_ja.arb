@@ -1,6 +1,7 @@
 {
   "appTitle": "リピート・アフター・ミー",
   "audioLibraryTitle": "音声ライブラリ",
+  "mainPage": "メインページ",
   "searchHint": "名前を検索",
   "clearSearch": "検索をクリア",
   "loadErrorTitle": "音声ファイルを読み込めません",

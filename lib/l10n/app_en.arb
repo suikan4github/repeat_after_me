@@ -1,6 +1,7 @@
 {
   "appTitle": "Repeat After Me",
   "audioLibraryTitle": "Your audio library",
+  "mainPage": "Main page",
   "searchHint": "Search names",
   "clearSearch": "Clear search",
   "loadErrorTitle": "Could not load audio files",

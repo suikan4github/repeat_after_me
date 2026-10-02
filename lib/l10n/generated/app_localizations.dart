@@ -110,6 +110,12 @@ abstract class AppLocalizations {
   /// **'Your audio library'**
   String get audioLibraryTitle;
 
+  /// No description provided for @mainPage.
+  ///
+  /// In en, this message translates to:
+  /// **'Main page'**
+  String get mainPage;
+
   /// No description provided for @searchHint.
   ///
   /// In en, this message translates to:

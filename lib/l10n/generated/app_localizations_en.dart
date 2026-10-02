@@ -15,6 +15,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get audioLibraryTitle => 'Your audio library';
 
   @override
+  String get mainPage => 'Main page';
+
+  @override
   String get searchHint => 'Search names';
 
   @override
