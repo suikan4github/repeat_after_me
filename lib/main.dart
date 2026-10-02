@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:dynamic_color/dynamic_color.dart';
+import 'package:repeat_after_me/app_settings.dart';
 import 'package:repeat_after_me/l10n/generated/app_localizations.dart';
 import 'package:repeat_after_me/audio_library_page.dart';
 
@@ -6,50 +8,54 @@ void main() {
   runApp(const MyApp());
 }
 
-class MyApp extends StatelessWidget {
+class MyApp extends StatefulWidget {
   const MyApp({super.key});
 
-  // This widget is the root of your application.
+  @override
+  State<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> {
+  late final Future<AppSettings> _settingsFuture = AppSettings.load();
+
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      onGenerateTitle: (context) => AppLocalizations.of(context)!.appTitle,
-      localizationsDelegates: AppLocalizations.localizationsDelegates,
-      supportedLocales: const [Locale('ja'), Locale('en')],
-      localeResolutionCallback: (locale, supportedLocales) {
-        return locale?.languageCode == 'ja'
-            ? const Locale('ja')
-            : const Locale('en');
-      },
-      theme: ThemeData(
-        // This is the theme of your application.
-        //
-        // TRY THIS: Try running your application with "flutter run". You'll see
-        // the application has a purple toolbar. Then, without quitting the app,
-        // try changing the seedColor in the colorScheme below to Colors.green
-        // and then invoke "hot reload" (save your changes or press the "hot
-        // reload" button in a Flutter-supported IDE, or press "r" if you used
-        // the command line to start the app).
-        //
-        // Notice that the counter didn't reset back to zero; the application
-        // state is not lost during the reload. To reset the state, use hot
-        // restart instead.
-        //
-        // This works for code too, not just values: Most code changes can be
-        // tested with just a hot reload.
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF087E78),
-          brightness: Brightness.light,
-        ),
-        scaffoldBackgroundColor: const Color(0xFFF5F8F7),
-        appBarTheme: const AppBarTheme(
-          backgroundColor: Color(0xFFF5F8F7),
-          foregroundColor: Color(0xFF18312F),
-          elevation: 0,
-        ),
-        useMaterial3: true,
+    return DynamicColorBuilder(
+      builder: (lightDynamic, darkDynamic) => FutureBuilder<AppSettings>(
+        future: _settingsFuture,
+        builder: (context, snapshot) {
+          final settings = snapshot.data;
+          if (settings == null) {
+            return const MaterialApp(
+              home: Scaffold(body: Center(child: CircularProgressIndicator())),
+            );
+          }
+          return AnimatedBuilder(
+            animation: settings,
+            builder: (context, child) => MaterialApp(
+              onGenerateTitle: (context) =>
+                  AppLocalizations.of(context)!.appTitle,
+              localizationsDelegates: AppLocalizations.localizationsDelegates,
+              supportedLocales: const [Locale('ja'), Locale('en')],
+              localeResolutionCallback: (locale, supportedLocales) {
+                return locale?.languageCode == 'ja'
+                    ? const Locale('ja')
+                    : const Locale('en');
+              },
+              theme: settings.theme(
+                brightness: Brightness.light,
+                systemColorScheme: lightDynamic,
+              ),
+              darkTheme: settings.theme(
+                brightness: Brightness.dark,
+                systemColorScheme: darkDynamic,
+              ),
+              themeMode: ThemeMode.system,
+              home: AudioLibraryPage(settings: settings),
+            ),
+          );
+        },
       ),
-      home: const AudioLibraryPage(),
     );
   }
 }

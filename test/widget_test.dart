@@ -7,10 +7,14 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:repeat_after_me/app_settings.dart';
 import 'package:repeat_after_me/main.dart';
 
 void main() {
+  setUp(() => SharedPreferences.setMockInitialValues({}));
+
   testWidgets('uses Japanese for Japanese system locales',
       (WidgetTester tester) async {
     tester.platformDispatcher.localesTestValue = const [Locale('ja', 'JP')];
@@ -70,5 +74,40 @@ void main() {
     await tester.tap(find.text('Main page'));
     await tester.pumpAndSettle();
     expect(find.text('Main page'), findsNothing);
+  });
+
+  testWidgets('opens appearance settings from navigation',
+      (WidgetTester tester) async {
+    tester.platformDispatcher.localesTestValue = const [Locale('en', 'US')];
+    addTearDown(tester.platformDispatcher.clearLocalesTestValue);
+
+    await tester.pumpWidget(const MyApp());
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Open navigation menu'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Settings'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Color scheme'), findsOneWidget);
+    expect(find.text('Seed color'), findsOneWidget);
+    expect(find.text('Color variant'), findsOneWidget);
+    expect(find.text('Speak button size'), findsNothing);
+
+    await tester.tap(find.text('Follow system'));
+    await tester.pumpAndSettle();
+    expect(find.text('Seed color'), findsNothing);
+    expect(find.text('Color variant'), findsNothing);
+  });
+
+  test('persists appearance settings across reloads', () async {
+    final settings = await AppSettings.load();
+    await settings.setFollowSystemColors(true);
+    await settings.setSeedColor(const Color(0xFF008577));
+    await settings.setSchemeVariant(DynamicSchemeVariant.monochrome);
+
+    final restored = await AppSettings.load();
+    expect(restored.followSystemColors, isTrue);
+    expect(restored.seedColor, const Color(0xFF008577));
+    expect(restored.schemeVariant, DynamicSchemeVariant.monochrome);
   });
 }

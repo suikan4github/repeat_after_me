@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:repeat_after_me/l10n/generated/app_localizations.dart';
 
-enum AppDestination { main }
+enum AppDestination { main, settings }
 
 class AppNavigationDrawer extends StatelessWidget {
   const AppNavigationDrawer({
@@ -39,6 +39,15 @@ class AppNavigationDrawer extends StatelessWidget {
               onTap: () {
                 Navigator.of(context).pop();
                 onDestinationSelected?.call(AppDestination.main);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.settings_outlined),
+              title: Text(l10n.settingsPage),
+              selected: selectedDestination == AppDestination.settings,
+              onTap: () {
+                Navigator.of(context).pop();
+                onDestinationSelected?.call(AppDestination.settings);
               },
             ),
           ],

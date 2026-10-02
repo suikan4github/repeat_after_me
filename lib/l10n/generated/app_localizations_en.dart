@@ -18,6 +18,63 @@ class AppLocalizationsEn extends AppLocalizations {
   String get mainPage => 'Main page';
 
   @override
+  String get settingsPage => 'Settings';
+
+  @override
+  String get settingsColorScheme => 'Color scheme';
+
+  @override
+  String get settingsCustom => 'Custom';
+
+  @override
+  String get settingsFollowSystem => 'Follow system';
+
+  @override
+  String get settingsSeedColor => 'Seed color';
+
+  @override
+  String get settingsColorVariant => 'Color variant';
+
+  @override
+  String get settingsChooseSeedColor => 'Choose seed color';
+
+  @override
+  String get settingsVariantFidelity => 'Fidelity';
+
+  @override
+  String get settingsVariantTonal => 'Tonal';
+
+  @override
+  String get settingsVariantNeutral => 'Neutral';
+
+  @override
+  String get settingsVariantMonochrome => 'Monochrome';
+
+  @override
+  String get settingsColorDodgerBlue => 'Dodger Blue';
+
+  @override
+  String get settingsColorTeal => 'Teal';
+
+  @override
+  String get settingsColorAmber => 'Amber';
+
+  @override
+  String get settingsColorOrange => 'Orange';
+
+  @override
+  String get settingsColorRose => 'Rose';
+
+  @override
+  String get settingsColorIndigo => 'Indigo';
+
+  @override
+  String get settingsColorGreen => 'Green';
+
+  @override
+  String get settingsColorPurple => 'Purple';
+
+  @override
   String get searchHint => 'Search names';
 
   @override

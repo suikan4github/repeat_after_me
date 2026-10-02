@@ -18,6 +18,63 @@ class AppLocalizationsJa extends AppLocalizations {
   String get mainPage => 'メインページ';
 
   @override
+  String get settingsPage => '設定';
+
+  @override
+  String get settingsColorScheme => '配色';
+
+  @override
+  String get settingsCustom => 'カスタム';
+
+  @override
+  String get settingsFollowSystem => 'システムに合わせる';
+
+  @override
+  String get settingsSeedColor => 'シードカラー';
+
+  @override
+  String get settingsColorVariant => 'カラーバリエーション';
+
+  @override
+  String get settingsChooseSeedColor => 'シードカラーを選択';
+
+  @override
+  String get settingsVariantFidelity => '忠実';
+
+  @override
+  String get settingsVariantTonal => 'トーン';
+
+  @override
+  String get settingsVariantNeutral => 'ニュートラル';
+
+  @override
+  String get settingsVariantMonochrome => 'モノクロ';
+
+  @override
+  String get settingsColorDodgerBlue => 'ドジャーブルー';
+
+  @override
+  String get settingsColorTeal => 'ティール';
+
+  @override
+  String get settingsColorAmber => 'アンバー';
+
+  @override
+  String get settingsColorOrange => 'オレンジ';
+
+  @override
+  String get settingsColorRose => 'ローズ';
+
+  @override
+  String get settingsColorIndigo => 'インディゴ';
+
+  @override
+  String get settingsColorGreen => 'グリーン';
+
+  @override
+  String get settingsColorPurple => 'パープル';
+
+  @override
   String get searchHint => '名前を検索';
 
   @override

@@ -116,6 +116,120 @@ abstract class AppLocalizations {
   /// **'Main page'**
   String get mainPage;
 
+  /// No description provided for @settingsPage.
+  ///
+  /// In en, this message translates to:
+  /// **'Settings'**
+  String get settingsPage;
+
+  /// No description provided for @settingsColorScheme.
+  ///
+  /// In en, this message translates to:
+  /// **'Color scheme'**
+  String get settingsColorScheme;
+
+  /// No description provided for @settingsCustom.
+  ///
+  /// In en, this message translates to:
+  /// **'Custom'**
+  String get settingsCustom;
+
+  /// No description provided for @settingsFollowSystem.
+  ///
+  /// In en, this message translates to:
+  /// **'Follow system'**
+  String get settingsFollowSystem;
+
+  /// No description provided for @settingsSeedColor.
+  ///
+  /// In en, this message translates to:
+  /// **'Seed color'**
+  String get settingsSeedColor;
+
+  /// No description provided for @settingsColorVariant.
+  ///
+  /// In en, this message translates to:
+  /// **'Color variant'**
+  String get settingsColorVariant;
+
+  /// No description provided for @settingsChooseSeedColor.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose seed color'**
+  String get settingsChooseSeedColor;
+
+  /// No description provided for @settingsVariantFidelity.
+  ///
+  /// In en, this message translates to:
+  /// **'Fidelity'**
+  String get settingsVariantFidelity;
+
+  /// No description provided for @settingsVariantTonal.
+  ///
+  /// In en, this message translates to:
+  /// **'Tonal'**
+  String get settingsVariantTonal;
+
+  /// No description provided for @settingsVariantNeutral.
+  ///
+  /// In en, this message translates to:
+  /// **'Neutral'**
+  String get settingsVariantNeutral;
+
+  /// No description provided for @settingsVariantMonochrome.
+  ///
+  /// In en, this message translates to:
+  /// **'Monochrome'**
+  String get settingsVariantMonochrome;
+
+  /// No description provided for @settingsColorDodgerBlue.
+  ///
+  /// In en, this message translates to:
+  /// **'Dodger Blue'**
+  String get settingsColorDodgerBlue;
+
+  /// No description provided for @settingsColorTeal.
+  ///
+  /// In en, this message translates to:
+  /// **'Teal'**
+  String get settingsColorTeal;
+
+  /// No description provided for @settingsColorAmber.
+  ///
+  /// In en, this message translates to:
+  /// **'Amber'**
+  String get settingsColorAmber;
+
+  /// No description provided for @settingsColorOrange.
+  ///
+  /// In en, this message translates to:
+  /// **'Orange'**
+  String get settingsColorOrange;
+
+  /// No description provided for @settingsColorRose.
+  ///
+  /// In en, this message translates to:
+  /// **'Rose'**
+  String get settingsColorRose;
+
+  /// No description provided for @settingsColorIndigo.
+  ///
+  /// In en, this message translates to:
+  /// **'Indigo'**
+  String get settingsColorIndigo;
+
+  /// No description provided for @settingsColorGreen.
+  ///
+  /// In en, this message translates to:
+  /// **'Green'**
+  String get settingsColorGreen;
+
+  /// No description provided for @settingsColorPurple.
+  ///
+  /// In en, this message translates to:
+  /// **'Purple'**
+  String get settingsColorPurple;
+
   /// No description provided for @searchHint.
   ///
   /// In en, this message translates to:

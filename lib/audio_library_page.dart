@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:repeat_after_me/app_settings.dart';
 import 'package:repeat_after_me/l10n/generated/app_localizations.dart';
+import 'package:repeat_after_me/settings_page.dart';
 import 'package:repeat_after_me/widgets/app_navigation_drawer.dart';
 
 class AudioLibraryPage extends StatefulWidget {
-  const AudioLibraryPage({super.key});
+  const AudioLibraryPage({super.key, required this.settings});
+
+  final AppSettings settings;
 
   @override
   State<AudioLibraryPage> createState() => _AudioLibraryPageState();
@@ -50,7 +54,18 @@ class _AudioLibraryPageState extends State<AudioLibraryPage> {
     final colors = Theme.of(context).colorScheme;
     final l10n = AppLocalizations.of(context)!;
     return Scaffold(
-      drawer: AppNavigationDrawer(selectedDestination: AppDestination.main),
+      drawer: AppNavigationDrawer(
+        selectedDestination: AppDestination.main,
+        onDestinationSelected: (destination) {
+          if (destination == AppDestination.settings) {
+            Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => SettingsPage(settings: widget.settings),
+              ),
+            );
+          }
+        },
+      ),
       appBar: AppBar(
         title: Text(
           l10n.appTitle,
@@ -184,12 +199,12 @@ class _AudioLibraryPageState extends State<AudioLibraryPage> {
                                       width: 40,
                                       height: 40,
                                       decoration: BoxDecoration(
-                                        color: const Color(0xFFDCEFEB),
+                                        color: colors.primaryContainer,
                                         borderRadius: BorderRadius.circular(8),
                                       ),
                                       child: Icon(
                                         Icons.graphic_eq,
-                                        color: colors.primary,
+                                        color: colors.onPrimaryContainer,
                                       ),
                                     ),
                                     const SizedBox(width: 14),
