@@ -42,6 +42,8 @@ ENV FLUTTER_HOME=/usr/local/flutter
 RUN git clone --depth 1 --branch 3.32.8 https://github.com/flutter/flutter.git ${FLUTTER_HOME}
 ENV PATH="${FLUTTER_HOME}/bin:${FLUTTER_HOME}/bin/cache/dart-sdk/bin:${PATH}"
 
+# rootless Podmanでは未マップのuid/gidへのchownが失敗するためtarの所有者復元を無効化
+ENV TAR_OPTIONS=--no-same-owner
 RUN flutter config --no-analytics --android-sdk ${ANDROID_HOME} && \
     flutter precache --android --web
 
