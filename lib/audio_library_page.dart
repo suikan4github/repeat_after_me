@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:repeat_after_me/l10n/generated/app_localizations.dart';
 
 class AudioLibraryPage extends StatefulWidget {
   const AudioLibraryPage({super.key});
@@ -46,10 +47,11 @@ class _AudioLibraryPageState extends State<AudioLibraryPage> {
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
+    final l10n = AppLocalizations.of(context)!;
     return Scaffold(
       appBar: AppBar(
-        title: const Text(
-          'Repeat After Me',
+        title: Text(
+          l10n.appTitle,
           style: TextStyle(fontWeight: FontWeight.w700),
         ),
       ),
@@ -62,7 +64,7 @@ class _AudioLibraryPageState extends State<AudioLibraryPage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Your audio library',
+                  l10n.audioLibraryTitle,
                   style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                         color: const Color(0xFF18312F),
                         fontWeight: FontWeight.w700,
@@ -73,12 +75,12 @@ class _AudioLibraryPageState extends State<AudioLibraryPage> {
                   controller: _searchController,
                   onChanged: (value) => setState(() => _query = value),
                   decoration: InputDecoration(
-                    hintText: 'Search names',
+                    hintText: l10n.searchHint,
                     prefixIcon: const Icon(Icons.search),
                     suffixIcon: _query.isEmpty
                         ? null
                         : IconButton(
-                            tooltip: 'Clear search',
+                            tooltip: l10n.clearSearch,
                             onPressed: () {
                               _searchController.clear();
                               setState(() => _query = '');
@@ -112,16 +114,17 @@ class _AudioLibraryPageState extends State<AudioLibraryPage> {
                         );
                       }
                       if (snapshot.hasError) {
+                        debugPrint('Audio asset load error: ${snapshot.error}');
                         return _MessageState(
                           icon: Icons.warning_amber_rounded,
-                          title: 'Could not load audio files',
-                          message: 'Check the audio assets and try again.',
+                          title: l10n.loadErrorTitle,
+                          message: l10n.loadErrorMessage,
                           action: TextButton.icon(
                             onPressed: () => setState(
                               () => _audioNamesFuture = _loadAudioNames(),
                             ),
                             icon: const Icon(Icons.refresh),
-                            label: const Text('Retry'),
+                            label: Text(l10n.retry),
                           ),
                         );
                       }
@@ -138,11 +141,11 @@ class _AudioLibraryPageState extends State<AudioLibraryPage> {
                               ? Icons.library_music_outlined
                               : Icons.search_off,
                           title: query.isEmpty
-                              ? 'No audio files yet'
-                              : 'No matches found',
+                              ? l10n.emptyTitle
+                              : l10n.noMatchesTitle,
                           message: query.isEmpty
-                              ? 'Add .m4a files to assets/audio/.'
-                              : 'Try a different search.',
+                              ? l10n.emptyMessage
+                              : l10n.noMatchesMessage,
                         );
                       }
 
@@ -152,7 +155,7 @@ class _AudioLibraryPageState extends State<AudioLibraryPage> {
                           Padding(
                             padding: const EdgeInsets.only(bottom: 8),
                             child: Text(
-                              '${filteredNames.length} ${filteredNames.length == 1 ? 'ITEM' : 'ITEMS'}',
+                              l10n.itemCount(filteredNames.length),
                               style: Theme.of(context)
                                   .textTheme
                                   .labelMedium

@@ -11,17 +11,36 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:repeat_after_me/main.dart';
 
 void main() {
-  testWidgets('shows the audio library and search empty state',
+  testWidgets('uses Japanese for Japanese system locales',
       (WidgetTester tester) async {
+    tester.platformDispatcher.localesTestValue = const [Locale('ja', 'JP')];
+    addTearDown(tester.platformDispatcher.clearLocalesTestValue);
+
     await tester.pumpWidget(const MyApp());
     await tester.pumpAndSettle();
 
-    expect(find.text('Your audio library'), findsOneWidget);
-    expect(find.byType(TextField), findsOneWidget);
-    expect(find.text('No audio files yet'), findsOneWidget);
+    expect(find.text('リピート・アフター・ミー'), findsOneWidget);
+    expect(find.text('音声ライブラリ'), findsOneWidget);
+    expect(
+      tester.widget<TextField>(find.byType(TextField)).decoration!.hintText,
+      '名前を検索',
+    );
+  });
 
-    await tester.enterText(find.byType(TextField), 'missing');
+  testWidgets('uses English for non-Japanese system locales', (
+    WidgetTester tester,
+  ) async {
+    tester.platformDispatcher.localesTestValue = const [Locale('fr', 'FR')];
+    addTearDown(tester.platformDispatcher.clearLocalesTestValue);
+
+    await tester.pumpWidget(const MyApp());
     await tester.pumpAndSettle();
-    expect(find.text('No matches found'), findsOneWidget);
+
+    expect(find.text('Repeat After Me'), findsOneWidget);
+    expect(find.text('Your audio library'), findsOneWidget);
+    expect(
+      tester.widget<TextField>(find.byType(TextField)).decoration!.hintText,
+      'Search names',
+    );
   });
 }

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:repeat_after_me/l10n/generated/app_localizations.dart';
 import 'package:repeat_after_me/audio_library_page.dart';
 
 void main() {
@@ -12,7 +13,14 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Repeat After Me',
+      onGenerateTitle: (context) => AppLocalizations.of(context)!.appTitle,
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      supportedLocales: const [Locale('ja'), Locale('en')],
+      localeResolutionCallback: (locale, supportedLocales) {
+        return locale?.languageCode == 'ja'
+            ? const Locale('ja')
+            : const Locale('en');
+      },
       theme: ThemeData(
         // This is the theme of your application.
         //

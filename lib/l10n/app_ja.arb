@@ -1,0 +1,21 @@
+{
+  "appTitle": "リピート・アフター・ミー",
+  "audioLibraryTitle": "音声ライブラリ",
+  "searchHint": "名前を検索",
+  "clearSearch": "検索をクリア",
+  "loadErrorTitle": "音声ファイルを読み込めません",
+  "loadErrorMessage": "音声アセットを確認して、もう一度お試しください。",
+  "retry": "再試行",
+  "emptyTitle": "音声ファイルはまだありません",
+  "emptyMessage": "assets/audio/ に .m4a ファイルを追加してください。",
+  "noMatchesTitle": "一致する項目がありません",
+  "noMatchesMessage": "別のキーワードで検索してください。",
+  "itemCount": "{count, plural, other{{count}件}}",
+  "@itemCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  }
+}
