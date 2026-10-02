@@ -15,6 +15,15 @@ class AppLocalizationsEn extends AppLocalizations {
   String get audioLibraryTitle => 'Your audio library';
 
   @override
+  String get playAudio => 'Play audio';
+
+  @override
+  String get pauseAudio => 'Pause audio';
+
+  @override
+  String get audioPlaybackError => 'Could not play this audio file.';
+
+  @override
   String get mainPage => 'Main page';
 
   @override

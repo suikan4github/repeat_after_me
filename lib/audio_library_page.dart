@@ -1,5 +1,8 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:just_audio/just_audio.dart';
 import 'package:repeat_after_me/app_settings.dart';
 import 'package:repeat_after_me/l10n/generated/app_localizations.dart';
 import 'package:repeat_after_me/settings_page.dart';
@@ -17,7 +20,11 @@ class AudioLibraryPage extends StatefulWidget {
 class _AudioLibraryPageState extends State<AudioLibraryPage> {
   static const _assetDirectory = 'assets/audio/';
   final _searchController = TextEditingController();
-  late Future<List<String>> _audioNamesFuture;
+  late Future<List<_AudioEntry>> _audioNamesFuture;
+  AudioPlayer? _player;
+  StreamSubscription<PlayerState>? _playerStateSubscription;
+  String? _playingAssetPath;
+  bool _isPlaying = false;
   String _query = '';
 
   @override
@@ -29,10 +36,12 @@ class _AudioLibraryPageState extends State<AudioLibraryPage> {
   @override
   void dispose() {
     _searchController.dispose();
+    unawaited(_playerStateSubscription?.cancel());
+    unawaited(_player?.dispose());
     super.dispose();
   }
 
-  Future<List<String>> _loadAudioNames() async {
+  Future<List<_AudioEntry>> _loadAudioNames() async {
     final manifest = await AssetManifest.loadFromAssetBundle(rootBundle);
     final names = manifest
         .listAssets()
@@ -41,12 +50,71 @@ class _AudioLibraryPageState extends State<AudioLibraryPage> {
               path.startsWith(_assetDirectory) &&
               path.toLowerCase().endsWith('.m4a'),
         )
-        .map((path) => path.split('/').last)
-        .map((filename) => filename.substring(0, filename.length - 4))
+        .map((path) {
+          final filename = path.split('/').last;
+          return _AudioEntry(
+            assetPath: path,
+            name: filename.substring(0, filename.length - 4),
+          );
+        })
         .toList()
-      ..sort((first, second) =>
-          first.toLowerCase().compareTo(second.toLowerCase()));
+      ..sort((first, second) => first.name.toLowerCase().compareTo(
+            second.name.toLowerCase(),
+          ));
     return names;
+  }
+
+  AudioPlayer _getPlayer() {
+    final currentPlayer = _player;
+    if (currentPlayer != null) return currentPlayer;
+
+    final player = AudioPlayer();
+    _player = player;
+    _playerStateSubscription = player.playerStateStream.listen((state) {
+      if (!mounted) return;
+      setState(() {
+        _isPlaying = state.playing;
+        if (state.processingState == ProcessingState.completed) {
+          _playingAssetPath = null;
+          _isPlaying = false;
+        }
+      });
+    });
+    return player;
+  }
+
+  Future<void> _togglePlayback(_AudioEntry entry) async {
+    final player = _getPlayer();
+    try {
+      if (_playingAssetPath == entry.assetPath) {
+        if (player.playing) {
+          await player.pause();
+        } else {
+          await player.play();
+        }
+        return;
+      }
+
+      setState(() {
+        _playingAssetPath = entry.assetPath;
+        _isPlaying = false;
+      });
+      await player.setAsset(entry.assetPath);
+      await player.play();
+    } catch (error, stackTrace) {
+      debugPrint('Audio playback failed for ${entry.assetPath}: $error');
+      debugPrintStack(stackTrace: stackTrace);
+      if (!mounted) return;
+      setState(() {
+        _playingAssetPath = null;
+        _isPlaying = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(AppLocalizations.of(context)!.audioPlaybackError),
+        ),
+      );
+    }
   }
 
   @override
@@ -122,7 +190,7 @@ class _AudioLibraryPageState extends State<AudioLibraryPage> {
                 ),
                 const SizedBox(height: 24),
                 Expanded(
-                  child: FutureBuilder<List<String>>(
+                  child: FutureBuilder<List<_AudioEntry>>(
                     future: _audioNamesFuture,
                     builder: (context, snapshot) {
                       if (snapshot.connectionState != ConnectionState.done) {
@@ -146,10 +214,12 @@ class _AudioLibraryPageState extends State<AudioLibraryPage> {
                         );
                       }
 
-                      final allNames = snapshot.data ?? const <String>[];
+                        final allNames =
+                          snapshot.data ?? const <_AudioEntry>[];
                       final query = _query.trim().toLowerCase();
-                      final filteredNames = allNames
-                          .where((name) => name.toLowerCase().contains(query))
+                        final filteredNames = allNames
+                          .where((entry) =>
+                            entry.name.toLowerCase().contains(query))
                           .toList();
 
                       if (filteredNames.isEmpty) {
@@ -189,40 +259,49 @@ class _AudioLibraryPageState extends State<AudioLibraryPage> {
                                 height: 1,
                                 color: colors.outlineVariant,
                               ),
-                              itemBuilder: (context, index) => Padding(
-                                padding: const EdgeInsets.symmetric(
-                                  vertical: 6,
-                                ),
-                                child: Row(
-                                  children: [
-                                    Container(
-                                      width: 40,
-                                      height: 40,
-                                      decoration: BoxDecoration(
-                                        color: colors.primaryContainer,
-                                        borderRadius: BorderRadius.circular(8),
-                                      ),
-                                      child: Icon(
-                                        Icons.graphic_eq,
-                                        color: colors.onPrimaryContainer,
-                                      ),
+                              itemBuilder: (context, index) {
+                                final entry = filteredNames[index];
+                                final isCurrent =
+                                    _playingAssetPath == entry.assetPath;
+                                final isPlaying = isCurrent && _isPlaying;
+                                return ListTile(
+                                  contentPadding: const EdgeInsets.symmetric(
+                                    horizontal: 4,
+                                  ),
+                                  onTap: () => _togglePlayback(entry),
+                                  leading: Container(
+                                    width: 40,
+                                    height: 40,
+                                    decoration: BoxDecoration(
+                                      color: colors.primaryContainer,
+                                      borderRadius: BorderRadius.circular(8),
                                     ),
-                                    const SizedBox(width: 14),
-                                    Expanded(
-                                      child: Text(
-                                        filteredNames[index],
-                                        style: Theme.of(context)
-                                            .textTheme
-                                            .titleMedium
-                                            ?.copyWith(
-                                              color: const Color(0xFF18312F),
-                                              fontWeight: FontWeight.w600,
-                                            ),
-                                      ),
+                                    child: Icon(
+                                      Icons.graphic_eq,
+                                      color: colors.onPrimaryContainer,
                                     ),
-                                  ],
-                                ),
-                              ),
+                                  ),
+                                  title: Text(
+                                    entry.name,
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .titleMedium
+                                        ?.copyWith(
+                                          color: colors.onSurface,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                  ),
+                                  trailing: IconButton(
+                                    tooltip: isPlaying
+                                        ? l10n.pauseAudio
+                                        : l10n.playAudio,
+                                    onPressed: () => _togglePlayback(entry),
+                                    icon: Icon(
+                                      isPlaying ? Icons.pause : Icons.play_arrow,
+                                    ),
+                                  ),
+                                );
+                              },
                             ),
                           ),
                         ],
@@ -237,6 +316,13 @@ class _AudioLibraryPageState extends State<AudioLibraryPage> {
       ),
     );
   }
+}
+
+class _AudioEntry {
+  const _AudioEntry({required this.assetPath, required this.name});
+
+  final String assetPath;
+  final String name;
 }
 
 class _MessageState extends StatelessWidget {

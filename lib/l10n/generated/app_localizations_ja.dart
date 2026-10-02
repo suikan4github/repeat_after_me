@@ -15,6 +15,15 @@ class AppLocalizationsJa extends AppLocalizations {
   String get audioLibraryTitle => '音声ライブラリ';
 
   @override
+  String get playAudio => '音声を再生';
+
+  @override
+  String get pauseAudio => '音声を一時停止';
+
+  @override
+  String get audioPlaybackError => 'この音声ファイルを再生できません。';
+
+  @override
   String get mainPage => 'メインページ';
 
   @override

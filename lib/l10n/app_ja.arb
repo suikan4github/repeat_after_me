@@ -1,6 +1,9 @@
 {
   "appTitle": "リピート・アフター・ミー",
   "audioLibraryTitle": "音声ライブラリ",
+  "playAudio": "音声を再生",
+  "pauseAudio": "音声を一時停止",
+  "audioPlaybackError": "この音声ファイルを再生できません。",
   "mainPage": "メインページ",
   "settingsPage": "設定",
   "settingsColorScheme": "配色",

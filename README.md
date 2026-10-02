@@ -6,6 +6,7 @@ An audio phrase library for language study. The app lists the names of `.m4a` fi
 
 - Lists audio filenames without their `.m4a` extension
 - Filters names incrementally as you type
+- Plays an audio file when its list item is selected; select it again to pause
 - Uses Japanese when the system language is Japanese, and English otherwise
 - Supports a custom seed color, color scheme variant, or system colors
 - Saves appearance settings on the device and restores them on the next launch
@@ -43,4 +44,4 @@ Build for the web:
 flutter build web
 ```
 
-Build output is written to `build/web/`.
+Build output is written to `build/web/`. Audio playback on the web depends on the browser's M4A/AAC support.

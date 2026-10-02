@@ -1,6 +1,9 @@
 {
   "appTitle": "Repeat After Me",
   "audioLibraryTitle": "Your audio library",
+  "playAudio": "Play audio",
+  "pauseAudio": "Pause audio",
+  "audioPlaybackError": "Could not play this audio file.",
   "mainPage": "Main page",
   "settingsPage": "Settings",
   "settingsColorScheme": "Color scheme",

@@ -110,6 +110,24 @@ abstract class AppLocalizations {
   /// **'Your audio library'**
   String get audioLibraryTitle;
 
+  /// No description provided for @playAudio.
+  ///
+  /// In en, this message translates to:
+  /// **'Play audio'**
+  String get playAudio;
+
+  /// No description provided for @pauseAudio.
+  ///
+  /// In en, this message translates to:
+  /// **'Pause audio'**
+  String get pauseAudio;
+
+  /// No description provided for @audioPlaybackError.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not play this audio file.'**
+  String get audioPlaybackError;
+
   /// No description provided for @mainPage.
   ///
   /// In en, this message translates to:
