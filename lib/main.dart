@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:repeat_after_me/audio_library_page.dart';
 
 void main() {
   runApp(const MyApp());
@@ -11,7 +12,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Flutter Demo',
+      title: 'Repeat After Me',
       theme: ThemeData(
         // This is the theme of your application.
         //
@@ -28,9 +29,19 @@ class MyApp extends StatelessWidget {
         //
         // This works for code too, not just values: Most code changes can be
         // tested with just a hot reload.
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: const Color(0xFF087E78),
+          brightness: Brightness.light,
+        ),
+        scaffoldBackgroundColor: const Color(0xFFF5F8F7),
+        appBarTheme: const AppBarTheme(
+          backgroundColor: Color(0xFFF5F8F7),
+          foregroundColor: Color(0xFF18312F),
+          elevation: 0,
+        ),
+        useMaterial3: true,
       ),
-      home: const MyHomePage(title: 'Flutter Demo Home Page'),
+      home: const AudioLibraryPage(),
     );
   }
 }
