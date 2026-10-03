@@ -1,0 +1,45 @@
+{
+  "appTitle": "Repeat After Me",
+  "audioLibraryTitle": "Your audio library",
+  "playAudio": "Play audio",
+  "pauseAudio": "Pause audio",
+  "audioPlaybackError": "Could not play this audio file.",
+  "mainPage": "Main page",
+  "settingsPage": "Settings",
+  "about": "About",
+  "settingsColorScheme": "Color scheme",
+  "settingsCustom": "Custom",
+  "settingsFollowSystem": "Follow system",
+  "settingsSeedColor": "Seed color",
+  "settingsColorVariant": "Color variant",
+  "settingsChooseSeedColor": "Choose seed color",
+  "settingsVariantFidelity": "Fidelity",
+  "settingsVariantTonal": "Tonal",
+  "settingsVariantNeutral": "Neutral",
+  "settingsVariantMonochrome": "Monochrome",
+  "settingsColorDodgerBlue": "Dodger Blue",
+  "settingsColorTeal": "Teal",
+  "settingsColorAmber": "Amber",
+  "settingsColorOrange": "Orange",
+  "settingsColorRose": "Rose",
+  "settingsColorIndigo": "Indigo",
+  "settingsColorGreen": "Green",
+  "settingsColorPurple": "Purple",
+  "searchHint": "Search names",
+  "clearSearch": "Clear search",
+  "loadErrorTitle": "Could not load audio files",
+  "loadErrorMessage": "Check the audio assets and try again.",
+  "retry": "Retry",
+  "emptyTitle": "No audio files yet",
+  "emptyMessage": "Add .m4a files to assets/audio/.",
+  "noMatchesTitle": "No matches found",
+  "noMatchesMessage": "Try a different search.",
+  "itemCount": "{count, plural, =0{0 items} one{1 item} other{{count} items}}",
+  "@itemCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  }
+}

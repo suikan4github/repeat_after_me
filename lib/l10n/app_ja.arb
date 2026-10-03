@@ -1,0 +1,45 @@
+{
+  "appTitle": "リピート・アフター・ミー",
+  "audioLibraryTitle": "音声ライブラリ",
+  "playAudio": "音声を再生",
+  "pauseAudio": "音声を一時停止",
+  "audioPlaybackError": "この音声ファイルを再生できません。",
+  "mainPage": "メインページ",
+  "settingsPage": "設定",
+  "about": "バージョン情報",
+  "settingsColorScheme": "配色",
+  "settingsCustom": "カスタム",
+  "settingsFollowSystem": "システムに合わせる",
+  "settingsSeedColor": "シードカラー",
+  "settingsColorVariant": "カラーバリエーション",
+  "settingsChooseSeedColor": "シードカラーを選択",
+  "settingsVariantFidelity": "忠実",
+  "settingsVariantTonal": "トーン",
+  "settingsVariantNeutral": "ニュートラル",
+  "settingsVariantMonochrome": "モノクロ",
+  "settingsColorDodgerBlue": "ドジャーブルー",
+  "settingsColorTeal": "ティール",
+  "settingsColorAmber": "アンバー",
+  "settingsColorOrange": "オレンジ",
+  "settingsColorRose": "ローズ",
+  "settingsColorIndigo": "インディゴ",
+  "settingsColorGreen": "グリーン",
+  "settingsColorPurple": "パープル",
+  "searchHint": "名前を検索",
+  "clearSearch": "検索をクリア",
+  "loadErrorTitle": "音声ファイルを読み込めません",
+  "loadErrorMessage": "音声アセットを確認して、もう一度お試しください。",
+  "retry": "再試行",
+  "emptyTitle": "音声ファイルはまだありません",
+  "emptyMessage": "assets/audio/ に .m4a ファイルを追加してください。",
+  "noMatchesTitle": "一致する項目がありません",
+  "noMatchesMessage": "別のキーワードで検索してください。",
+  "itemCount": "{count, plural, other{{count}件}}",
+  "@itemCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  }
+}
