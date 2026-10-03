@@ -37,7 +37,8 @@ class SettingsPage extends StatelessWidget {
         },
       ),
       appBar: AppBar(title: Text(l10n.settingsPage)),
-      body: Center(
+      body: Align(
+        alignment: const Alignment(0, -0.4),
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 760),
           child: SingleChildScrollView(
@@ -51,23 +52,21 @@ class SettingsPage extends StatelessWidget {
                   l10n.settingsColorScheme,
                 ),
                 const SizedBox(height: 12),
-                Center(
-                  child: SegmentedButton<bool>(
-                    segments: [
-                      ButtonSegment<bool>(
-                        value: false,
-                        label: Text(l10n.settingsCustom),
-                      ),
-                      ButtonSegment<bool>(
-                        value: true,
-                        label: Text(l10n.settingsFollowSystem),
-                      ),
-                    ],
-                    selected: {settings.followSystemColors},
-                    onSelectionChanged: (selection) {
-                      settings.setFollowSystemColors(selection.first);
-                    },
-                  ),
+                SegmentedButton<bool>(
+                  segments: [
+                    ButtonSegment<bool>(
+                      value: false,
+                      label: Text(l10n.settingsCustom),
+                    ),
+                    ButtonSegment<bool>(
+                      value: true,
+                      label: Text(l10n.settingsFollowSystem),
+                    ),
+                  ],
+                  selected: {settings.followSystemColors},
+                  onSelectionChanged: (selection) {
+                    settings.setFollowSystemColors(selection.first);
+                  },
                 ),
                 if (!settings.followSystemColors) ...[
                   const SizedBox(height: 24),

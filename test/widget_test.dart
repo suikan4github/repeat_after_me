@@ -10,7 +10,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:repeat_after_me/app_settings.dart';
+import 'package:repeat_after_me/l10n/generated/app_localizations.dart';
 import 'package:repeat_after_me/main.dart';
+import 'package:repeat_after_me/settings_page.dart';
 
 void main() {
   setUp(() => SharedPreferences.setMockInitialValues({}));
@@ -112,8 +114,40 @@ void main() {
     await tester.tap(find.text('バージョン情報'));
     await tester.pumpAndSettle();
 
-    expect(find.text('0.1.0'), findsOneWidget);
+    expect(find.text('0.1.1'), findsOneWidget);
     expect(find.text('© 2026 HORIE Seiichi'), findsOneWidget);
+  });
+
+  testWidgets('positions settings with a 3 to 7 vertical spacing ratio', (
+    WidgetTester tester,
+  ) async {
+    tester.view.physicalSize = const Size(800, 1000);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final settings = await AppSettings.load();
+    await tester.pumpWidget(
+      MaterialApp(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: SettingsPage(settings: settings),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final content = find.byWidgetPredicate(
+      (widget) =>
+          widget is SingleChildScrollView &&
+          widget.scrollDirection == Axis.vertical,
+    );
+    final appBarBottom = tester.getBottomLeft(find.byType(AppBar)).dy;
+    final scaffoldBottom = tester.getBottomRight(find.byType(Scaffold)).dy;
+    final contentRect = tester.getRect(content);
+    final topSpace = contentRect.top - appBarBottom;
+    final bottomSpace = scaffoldBottom - contentRect.bottom;
+
+    expect(topSpace / bottomSpace, closeTo(3 / 7, 0.02));
   });
 
   test('persists appearance settings across reloads', () async {
