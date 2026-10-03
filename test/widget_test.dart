@@ -99,6 +99,23 @@ void main() {
     expect(find.text('Color variant'), findsNothing);
   });
 
+  testWidgets('shows version and copyright from the drawer', (
+    WidgetTester tester,
+  ) async {
+    tester.platformDispatcher.localesTestValue = const [Locale('ja', 'JP')];
+    addTearDown(tester.platformDispatcher.clearLocalesTestValue);
+
+    await tester.pumpWidget(const MyApp());
+    await tester.pumpAndSettle();
+    await tester.tap(find.byIcon(Icons.menu));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('バージョン情報'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('0.1.0'), findsOneWidget);
+    expect(find.text('© 2026 HORIE Seiichi'), findsOneWidget);
+  });
+
   test('persists appearance settings across reloads', () async {
     final settings = await AppSettings.load();
     await settings.setFollowSystemColors(true);

@@ -6,6 +6,7 @@
   "audioPlaybackError": "この音声ファイルを再生できません。",
   "mainPage": "メインページ",
   "settingsPage": "設定",
+  "about": "バージョン情報",
   "settingsColorScheme": "配色",
   "settingsCustom": "カスタム",
   "settingsFollowSystem": "システムに合わせる",

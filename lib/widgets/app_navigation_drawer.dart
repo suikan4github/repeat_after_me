@@ -50,6 +50,19 @@ class AppNavigationDrawer extends StatelessWidget {
                 onDestinationSelected?.call(AppDestination.settings);
               },
             ),
+            ListTile(
+              leading: const Icon(Icons.info_outline),
+              title: Text(l10n.about),
+              onTap: () {
+                Navigator.of(context).pop();
+                showAboutDialog(
+                  context: context,
+                  applicationName: l10n.appTitle,
+                  applicationVersion: '0.1.0',
+                  applicationLegalese: '© 2026 HORIE Seiichi',
+                );
+              },
+            ),
           ],
         ),
       ),

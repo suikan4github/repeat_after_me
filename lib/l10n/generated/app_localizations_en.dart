@@ -30,6 +30,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settingsPage => 'Settings';
 
   @override
+  String get about => 'About';
+
+  @override
   String get settingsColorScheme => 'Color scheme';
 
   @override

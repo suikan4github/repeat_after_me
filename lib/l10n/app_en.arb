@@ -6,6 +6,7 @@
   "audioPlaybackError": "Could not play this audio file.",
   "mainPage": "Main page",
   "settingsPage": "Settings",
+  "about": "About",
   "settingsColorScheme": "Color scheme",
   "settingsCustom": "Custom",
   "settingsFollowSystem": "Follow system",
