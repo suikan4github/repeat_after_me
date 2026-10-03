@@ -45,3 +45,14 @@ flutter build web
 ```
 
 Build output is written to `build/web/`. Audio playback on the web depends on the browser's M4A/AAC support.
+
+## Screenshots
+
+Here are some screenshots of the app.
+
+![](images/combined.png)
+**App Screenshot**
+
+## License
+
+This project is licensed under the MIT License. See the `LICENSE` file for details.

@@ -120,3 +120,5 @@ app.*.symbols
 
 # Test audio data in asset
 /assets/audio/*.m4a
+.vscode/launch.json
+devtools_options.yaml
