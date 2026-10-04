@@ -121,7 +121,7 @@ void main() {
     await tester.tap(find.text('バージョン情報'));
     await tester.pumpAndSettle();
 
-    expect(find.text('0.1.1'), findsOneWidget);
+    expect(find.text('0.2.0'), findsOneWidget);
     expect(find.text('© 2026 HORIE Seiichi'), findsOneWidget);
   });
 

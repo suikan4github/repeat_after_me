@@ -58,7 +58,7 @@ class AppNavigationDrawer extends StatelessWidget {
                 showAboutDialog(
                   context: context,
                   applicationName: l10n.appTitle,
-                  applicationVersion: '0.1.1',
+                  applicationVersion: '0.2.0',
                   applicationLegalese: '© 2026 HORIE Seiichi',
                 );
               },
