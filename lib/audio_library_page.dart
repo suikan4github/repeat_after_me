@@ -25,6 +25,7 @@ class AudioLibraryPage extends StatefulWidget {
 class _AudioLibraryPageState extends State<AudioLibraryPage> {
   static const _assetDirectory = 'assets/audio/';
   static const _continuousPlaybackInterval = Duration(seconds: 1);
+  static const _continuousPlaybackLimit = Duration(minutes: 15);
   final _searchController = TextEditingController();
   late Future<List<_AudioEntry>> _audioNamesFuture;
   AudioPlayer? _player;
@@ -32,6 +33,7 @@ class _AudioLibraryPageState extends State<AudioLibraryPage> {
   String? _playingAssetPath;
   bool _isPlaying = false;
   bool _isContinuousPlaying = false;
+  Timer? _autoStopTimer;
   String? _lastUserPlayedAssetPath;
   String? _lastContinuousEndedAssetPath;
   int _playbackActivityOrder = 0;
@@ -48,6 +50,7 @@ class _AudioLibraryPageState extends State<AudioLibraryPage> {
 
   @override
   void dispose() {
+    _autoStopTimer?.cancel();
     _searchController.dispose();
     unawaited(_playerStateSubscription?.cancel());
     unawaited(_player?.dispose());
@@ -101,6 +104,7 @@ class _AudioLibraryPageState extends State<AudioLibraryPage> {
   Future<void> _togglePlayback(_AudioEntry entry) async {
     final player = _getPlayer();
     final generation = ++_playbackGeneration;
+    _autoStopTimer?.cancel();
     if (_isContinuousPlaying && _playingAssetPath != null) {
       _recordContinuousPlaybackEnd(_playingAssetPath!);
     }
@@ -152,6 +156,8 @@ class _AudioLibraryPageState extends State<AudioLibraryPage> {
   Future<void> _startContinuousPlayback() async {
     final generation = ++_playbackGeneration;
     final player = _getPlayer();
+    _autoStopTimer?.cancel();
+    _autoStopTimer = Timer(_continuousPlaybackLimit, _stopPlayback);
     setState(() {
       _isContinuousPlaying = true;
     });
@@ -164,6 +170,7 @@ class _AudioLibraryPageState extends State<AudioLibraryPage> {
           .where((entry) => entry.name.toLowerCase().contains(query))
           .toList();
       if (entries.isEmpty) {
+        _autoStopTimer?.cancel();
         setState(() => _isContinuousPlaying = false);
         return;
       }
@@ -211,6 +218,7 @@ class _AudioLibraryPageState extends State<AudioLibraryPage> {
       }
     } catch (error, stackTrace) {
       if (!_isCurrentContinuousPlayback(generation)) return;
+      _autoStopTimer?.cancel();
       debugPrint('Continuous audio playback failed: $error');
       debugPrintStack(stackTrace: stackTrace);
       if (!mounted) return;
@@ -237,6 +245,7 @@ class _AudioLibraryPageState extends State<AudioLibraryPage> {
 
   Future<void> _stopPlayback() async {
     ++_playbackGeneration;
+    _autoStopTimer?.cancel();
     if (_isContinuousPlaying && _playingAssetPath != null) {
       _recordContinuousPlaybackEnd(_playingAssetPath!);
     }
