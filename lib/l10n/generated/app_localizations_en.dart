@@ -21,6 +21,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get pauseAudio => 'Pause audio';
 
   @override
+  String get continuousPlay => 'Play continuously';
+
+  @override
+  String get stopPlayback => 'Stop playback';
+
+  @override
   String get audioPlaybackError => 'Could not play this audio file.';
 
   @override
@@ -87,7 +93,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settingsColorPurple => 'Purple';
 
   @override
-  String get searchHint => 'Search names';
+  String get searchHint => 'Filter by name';
 
   @override
   String get clearSearch => 'Clear search';
