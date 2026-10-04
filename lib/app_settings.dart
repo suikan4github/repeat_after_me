@@ -3,15 +3,15 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 class AppSettings extends ChangeNotifier {
   AppSettings._(this._preferences)
-      : _followSystemColors =
-            _preferences.getBool(_followSystemColorsKey) ?? false,
-        _seedColor = Color(
-          _preferences.getInt(_seedColorKey) ?? _defaultSeedColorValue,
-        ),
-        _schemeVariant = DynamicSchemeVariant.values.firstWhere(
-          (variant) => variant.name == _preferences.getString(_schemeVariantKey),
-          orElse: () => DynamicSchemeVariant.tonalSpot,
-        );
+    : _followSystemColors =
+          _preferences.getBool(_followSystemColorsKey) ?? false,
+      _seedColor = Color(
+        _preferences.getInt(_seedColorKey) ?? _defaultSeedColorValue,
+      ),
+      _schemeVariant = DynamicSchemeVariant.values.firstWhere(
+        (variant) => variant.name == _preferences.getString(_schemeVariantKey),
+        orElse: () => DynamicSchemeVariant.tonalSpot,
+      );
 
   static const _followSystemColorsKey = 'settings.followSystemColors';
   static const _seedColorKey = 'settings.seedColor';

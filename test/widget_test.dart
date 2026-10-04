@@ -17,8 +17,9 @@ import 'package:repeat_after_me/settings_page.dart';
 void main() {
   setUp(() => SharedPreferences.setMockInitialValues({}));
 
-  testWidgets('uses Japanese for Japanese system locales',
-      (WidgetTester tester) async {
+  testWidgets('uses Japanese for Japanese system locales', (
+    WidgetTester tester,
+  ) async {
     tester.platformDispatcher.localesTestValue = const [Locale('ja', 'JP')];
     addTearDown(tester.platformDispatcher.clearLocalesTestValue);
 
@@ -31,6 +32,8 @@ void main() {
       tester.widget<TextField>(find.byType(TextField)).decoration!.hintText,
       '絞り込み検索',
     );
+    expect(find.byTooltip('連続再生'), findsOneWidget);
+    expect(find.byTooltip('再生を停止'), findsOneWidget);
 
     await tester.tap(find.byIcon(Icons.menu));
     await tester.pumpAndSettle();
@@ -52,10 +55,13 @@ void main() {
       tester.widget<TextField>(find.byType(TextField)).decoration!.hintText,
       'Filter by name',
     );
+    expect(find.byTooltip('Play continuously'), findsOneWidget);
+    expect(find.byTooltip('Stop playback'), findsOneWidget);
   });
 
-  testWidgets('opens the drawer and closes after selecting the current page',
-      (WidgetTester tester) async {
+  testWidgets('opens the drawer and closes after selecting the current page', (
+    WidgetTester tester,
+  ) async {
     tester.platformDispatcher.localesTestValue = const [Locale('en', 'US')];
     addTearDown(tester.platformDispatcher.clearLocalesTestValue);
 
@@ -78,8 +84,9 @@ void main() {
     expect(find.text('Main page'), findsNothing);
   });
 
-  testWidgets('opens appearance settings from navigation',
-      (WidgetTester tester) async {
+  testWidgets('opens appearance settings from navigation', (
+    WidgetTester tester,
+  ) async {
     tester.platformDispatcher.localesTestValue = const [Locale('en', 'US')];
     addTearDown(tester.platformDispatcher.clearLocalesTestValue);
 

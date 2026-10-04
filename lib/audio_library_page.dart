@@ -9,9 +9,14 @@ import 'package:repeat_after_me/settings_page.dart';
 import 'package:repeat_after_me/widgets/app_navigation_drawer.dart';
 
 class AudioLibraryPage extends StatefulWidget {
-  const AudioLibraryPage({super.key, required this.settings});
+  const AudioLibraryPage({
+    super.key,
+    required this.settings,
+    this.playerFactory,
+  });
 
   final AppSettings settings;
+  final AudioPlayer Function()? playerFactory;
 
   @override
   State<AudioLibraryPage> createState() => _AudioLibraryPageState();
@@ -19,12 +24,20 @@ class AudioLibraryPage extends StatefulWidget {
 
 class _AudioLibraryPageState extends State<AudioLibraryPage> {
   static const _assetDirectory = 'assets/audio/';
+  static const _continuousPlaybackInterval = Duration(seconds: 1);
   final _searchController = TextEditingController();
   late Future<List<_AudioEntry>> _audioNamesFuture;
   AudioPlayer? _player;
   StreamSubscription<PlayerState>? _playerStateSubscription;
   String? _playingAssetPath;
   bool _isPlaying = false;
+  bool _isContinuousPlaying = false;
+  String? _lastUserPlayedAssetPath;
+  String? _lastContinuousEndedAssetPath;
+  int _playbackActivityOrder = 0;
+  int _lastUserPlaybackOrder = 0;
+  int _lastContinuousEndOrder = 0;
+  int _playbackGeneration = 0;
   String _query = '';
 
   @override
@@ -43,24 +56,26 @@ class _AudioLibraryPageState extends State<AudioLibraryPage> {
 
   Future<List<_AudioEntry>> _loadAudioNames() async {
     final manifest = await AssetManifest.loadFromAssetBundle(rootBundle);
-    final names = manifest
-        .listAssets()
-        .where(
-          (path) =>
-              path.startsWith(_assetDirectory) &&
-              path.toLowerCase().endsWith('.m4a'),
-        )
-        .map((path) {
-          final filename = path.split('/').last;
-          return _AudioEntry(
-            assetPath: path,
-            name: filename.substring(0, filename.length - 4),
+    final names =
+        manifest
+            .listAssets()
+            .where(
+              (path) =>
+                  path.startsWith(_assetDirectory) &&
+                  path.toLowerCase().endsWith('.m4a'),
+            )
+            .map((path) {
+              final filename = path.split('/').last;
+              return _AudioEntry(
+                assetPath: path,
+                name: filename.substring(0, filename.length - 4),
+              );
+            })
+            .toList()
+          ..sort(
+            (first, second) =>
+                first.name.toLowerCase().compareTo(second.name.toLowerCase()),
           );
-        })
-        .toList()
-      ..sort((first, second) => first.name.toLowerCase().compareTo(
-            second.name.toLowerCase(),
-          ));
     return names;
   }
 
@@ -68,14 +83,14 @@ class _AudioLibraryPageState extends State<AudioLibraryPage> {
     final currentPlayer = _player;
     if (currentPlayer != null) return currentPlayer;
 
-    final player = AudioPlayer();
+    final player = widget.playerFactory?.call() ?? AudioPlayer();
     _player = player;
     _playerStateSubscription = player.playerStateStream.listen((state) {
       if (!mounted) return;
       setState(() {
         _isPlaying = state.playing;
         if (state.processingState == ProcessingState.completed) {
-          _playingAssetPath = null;
+          if (!_isContinuousPlaying) _playingAssetPath = null;
           _isPlaying = false;
         }
       });
@@ -85,11 +100,17 @@ class _AudioLibraryPageState extends State<AudioLibraryPage> {
 
   Future<void> _togglePlayback(_AudioEntry entry) async {
     final player = _getPlayer();
+    final generation = ++_playbackGeneration;
+    if (_isContinuousPlaying && _playingAssetPath != null) {
+      _recordContinuousPlaybackEnd(_playingAssetPath!);
+    }
+    setState(() => _isContinuousPlaying = false);
     try {
       if (_playingAssetPath == entry.assetPath) {
         if (player.playing) {
           await player.pause();
         } else {
+          _recordUserPlayback(entry);
           await player.play();
         }
         return;
@@ -99,9 +120,15 @@ class _AudioLibraryPageState extends State<AudioLibraryPage> {
         _playingAssetPath = entry.assetPath;
         _isPlaying = false;
       });
+      // A completed source leaves `playing` true, which would make play() a no-op.
+      await player.stop();
+      if (generation != _playbackGeneration) return;
       await player.setAsset(entry.assetPath);
+      if (generation != _playbackGeneration) return;
+      _recordUserPlayback(entry);
       await player.play();
     } catch (error, stackTrace) {
+      if (generation != _playbackGeneration) return;
       debugPrint('Audio playback failed for ${entry.assetPath}: $error');
       debugPrintStack(stackTrace: stackTrace);
       if (!mounted) return;
@@ -109,6 +136,122 @@ class _AudioLibraryPageState extends State<AudioLibraryPage> {
         _playingAssetPath = null;
         _isPlaying = false;
       });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(AppLocalizations.of(context)!.audioPlaybackError),
+        ),
+      );
+    }
+  }
+
+  void _recordUserPlayback(_AudioEntry entry) {
+    _lastUserPlayedAssetPath = entry.assetPath;
+    _lastUserPlaybackOrder = ++_playbackActivityOrder;
+  }
+
+  Future<void> _startContinuousPlayback() async {
+    final generation = ++_playbackGeneration;
+    final player = _getPlayer();
+    setState(() {
+      _isContinuousPlaying = true;
+    });
+
+    try {
+      final allEntries = await _audioNamesFuture;
+      if (!_isCurrentContinuousPlayback(generation)) return;
+      final query = _query.trim().toLowerCase();
+      final entries = allEntries
+          .where((entry) => entry.name.toLowerCase().contains(query))
+          .toList();
+      if (entries.isEmpty) {
+        setState(() => _isContinuousPlaying = false);
+        return;
+      }
+
+      final lastPlayedOrder = _lastUserPlaybackOrder;
+      final lastEndedOrder = _lastContinuousEndOrder;
+      final lastPath = lastPlayedOrder > lastEndedOrder
+          ? _lastUserPlayedAssetPath
+          : _lastContinuousEndedAssetPath;
+      final lastIndex = entries.indexWhere(
+        (entry) => entry.assetPath == lastPath,
+      );
+      var index = lastIndex < 0 ? 0 : lastIndex;
+
+      await player.stop();
+      while (_isCurrentContinuousPlayback(generation)) {
+        final entry = entries[index];
+        // just_audio keeps `playing` true after completion, which makes the
+        // next play() a no-op; stop() resets it so the new source is audible.
+        await player.stop();
+        if (!_isCurrentContinuousPlayback(generation)) return;
+        await player.setAsset(entry.assetPath);
+        if (!_isCurrentContinuousPlayback(generation)) return;
+        setState(() {
+          _playingAssetPath = entry.assetPath;
+          _isPlaying = false;
+        });
+        final completion = player.playerStateStream.firstWhere(
+          (state) =>
+              state.processingState == ProcessingState.completed ||
+              !_isCurrentContinuousPlayback(generation),
+        );
+        await player.play();
+        if (!_isCurrentContinuousPlayback(generation)) return;
+        final completedState = await completion;
+        if (completedState.processingState != ProcessingState.completed ||
+            !_isCurrentContinuousPlayback(generation)) {
+          return;
+        }
+
+        _recordContinuousPlaybackEnd(entry.assetPath);
+        await Future<void>.delayed(_continuousPlaybackInterval);
+        if (!_isCurrentContinuousPlayback(generation)) return;
+        index = (index + 1) % entries.length;
+      }
+    } catch (error, stackTrace) {
+      if (!_isCurrentContinuousPlayback(generation)) return;
+      debugPrint('Continuous audio playback failed: $error');
+      debugPrintStack(stackTrace: stackTrace);
+      if (!mounted) return;
+      setState(() {
+        _isContinuousPlaying = false;
+        _playingAssetPath = null;
+        _isPlaying = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(AppLocalizations.of(context)!.audioPlaybackError),
+        ),
+      );
+    }
+  }
+
+  bool _isCurrentContinuousPlayback(int generation) =>
+      mounted && _isContinuousPlaying && generation == _playbackGeneration;
+
+  void _recordContinuousPlaybackEnd(String assetPath) {
+    _lastContinuousEndedAssetPath = assetPath;
+    _lastContinuousEndOrder = ++_playbackActivityOrder;
+  }
+
+  Future<void> _stopPlayback() async {
+    ++_playbackGeneration;
+    if (_isContinuousPlaying && _playingAssetPath != null) {
+      _recordContinuousPlaybackEnd(_playingAssetPath!);
+    }
+    setState(() => _isContinuousPlaying = false);
+    try {
+      await _player?.stop();
+      if (!mounted) return;
+      setState(() {
+        _playingAssetPath = null;
+        _isPlaying = false;
+      });
+    } catch (error, stackTrace) {
+      debugPrint('Stopping audio playback failed: $error');
+      debugPrintStack(stackTrace: stackTrace);
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(AppLocalizations.of(context)!.audioPlaybackError),
@@ -148,12 +291,34 @@ class _AudioLibraryPageState extends State<AudioLibraryPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  l10n.audioLibraryTitle,
-                  style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                        color: const Color(0xFF18312F),
-                        fontWeight: FontWeight.w700,
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        l10n.audioLibraryTitle,
+                        style: Theme.of(context).textTheme.headlineMedium
+                            ?.copyWith(
+                              color: const Color(0xFF18312F),
+                              fontWeight: FontWeight.w700,
+                            ),
                       ),
+                    ),
+                    IconButton(
+                      tooltip: l10n.continuousPlay,
+                      onPressed: _isContinuousPlaying
+                          ? null
+                          : _startContinuousPlayback,
+                      icon: const Icon(Icons.repeat),
+                    ),
+                    IconButton(
+                      tooltip: l10n.stopPlayback,
+                      onPressed:
+                          !_isContinuousPlaying && _playingAssetPath == null
+                          ? null
+                          : _stopPlayback,
+                      icon: const Icon(Icons.stop),
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 20),
                 TextField(
@@ -194,9 +359,7 @@ class _AudioLibraryPageState extends State<AudioLibraryPage> {
                     future: _audioNamesFuture,
                     builder: (context, snapshot) {
                       if (snapshot.connectionState != ConnectionState.done) {
-                        return const Center(
-                          child: CircularProgressIndicator(),
-                        );
+                        return const Center(child: CircularProgressIndicator());
                       }
                       if (snapshot.hasError) {
                         debugPrint('Audio asset load error: ${snapshot.error}');
@@ -214,12 +377,12 @@ class _AudioLibraryPageState extends State<AudioLibraryPage> {
                         );
                       }
 
-                        final allNames =
-                          snapshot.data ?? const <_AudioEntry>[];
+                      final allNames = snapshot.data ?? const <_AudioEntry>[];
                       final query = _query.trim().toLowerCase();
-                        final filteredNames = allNames
-                          .where((entry) =>
-                            entry.name.toLowerCase().contains(query))
+                      final filteredNames = allNames
+                          .where(
+                            (entry) => entry.name.toLowerCase().contains(query),
+                          )
                           .toList();
 
                       if (filteredNames.isEmpty) {
@@ -243,9 +406,7 @@ class _AudioLibraryPageState extends State<AudioLibraryPage> {
                             padding: const EdgeInsets.only(bottom: 8),
                             child: Text(
                               l10n.itemCount(filteredNames.length),
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .labelMedium
+                              style: Theme.of(context).textTheme.labelMedium
                                   ?.copyWith(
                                     color: colors.onSurfaceVariant,
                                     fontWeight: FontWeight.w700,
@@ -268,7 +429,9 @@ class _AudioLibraryPageState extends State<AudioLibraryPage> {
                                   contentPadding: const EdgeInsets.symmetric(
                                     horizontal: 4,
                                   ),
-                                  onTap: () => _togglePlayback(entry),
+                                  onTap: _isContinuousPlaying
+                                      ? null
+                                      : () => _togglePlayback(entry),
                                   leading: Container(
                                     width: 40,
                                     height: 40,
@@ -295,9 +458,13 @@ class _AudioLibraryPageState extends State<AudioLibraryPage> {
                                     tooltip: isPlaying
                                         ? l10n.pauseAudio
                                         : l10n.playAudio,
-                                    onPressed: () => _togglePlayback(entry),
+                                    onPressed: _isContinuousPlaying
+                                        ? null
+                                        : () => _togglePlayback(entry),
                                     icon: Icon(
-                                      isPlaying ? Icons.pause : Icons.play_arrow,
+                                      isPlaying
+                                          ? Icons.pause
+                                          : Icons.play_arrow,
                                     ),
                                   ),
                                 );
@@ -352,13 +519,10 @@ class _MessageState extends StatelessWidget {
             message,
             textAlign: TextAlign.center,
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
-                ),
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
           ),
-          if (action != null) ...[
-            const SizedBox(height: 12),
-            action!,
-          ],
+          if (action != null) ...[const SizedBox(height: 12), action!],
         ],
       ),
     );

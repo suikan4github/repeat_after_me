@@ -122,6 +122,18 @@ abstract class AppLocalizations {
   /// **'Pause audio'**
   String get pauseAudio;
 
+  /// No description provided for @continuousPlay.
+  ///
+  /// In en, this message translates to:
+  /// **'Play continuously'**
+  String get continuousPlay;
+
+  /// No description provided for @stopPlayback.
+  ///
+  /// In en, this message translates to:
+  /// **'Stop playback'**
+  String get stopPlayback;
+
   /// No description provided for @audioPlaybackError.
   ///
   /// In en, this message translates to:

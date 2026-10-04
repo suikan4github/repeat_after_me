@@ -3,6 +3,8 @@
   "audioLibraryTitle": "音声ライブラリ",
   "playAudio": "音声を再生",
   "pauseAudio": "音声を一時停止",
+  "continuousPlay": "連続再生",
+  "stopPlayback": "再生を停止",
   "audioPlaybackError": "この音声ファイルを再生できません。",
   "mainPage": "メインページ",
   "settingsPage": "設定",
