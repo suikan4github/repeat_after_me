@@ -257,7 +257,7 @@ abstract class AppLocalizations {
   /// No description provided for @searchHint.
   ///
   /// In en, this message translates to:
-  /// **'Search names'**
+  /// **'Filter by name'**
   String get searchHint;
 
   /// No description provided for @clearSearch.

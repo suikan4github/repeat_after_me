@@ -25,7 +25,7 @@
   "settingsColorIndigo": "インディゴ",
   "settingsColorGreen": "グリーン",
   "settingsColorPurple": "パープル",
-  "searchHint": "名前を検索",
+  "searchHint": "絞り込み検索",
   "clearSearch": "検索をクリア",
   "loadErrorTitle": "音声ファイルを読み込めません",
   "loadErrorMessage": "音声アセットを確認して、もう一度お試しください。",

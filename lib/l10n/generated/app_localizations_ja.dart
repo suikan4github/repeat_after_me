@@ -87,7 +87,7 @@ class AppLocalizationsJa extends AppLocalizations {
   String get settingsColorPurple => 'パープル';
 
   @override
-  String get searchHint => '名前を検索';
+  String get searchHint => '絞り込み検索';
 
   @override
   String get clearSearch => '検索をクリア';

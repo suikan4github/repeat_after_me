@@ -29,7 +29,7 @@ void main() {
     expect(find.text('音声ライブラリ'), findsOneWidget);
     expect(
       tester.widget<TextField>(find.byType(TextField)).decoration!.hintText,
-      '名前を検索',
+      '絞り込み検索',
     );
 
     await tester.tap(find.byIcon(Icons.menu));
@@ -50,7 +50,7 @@ void main() {
     expect(find.text('Your audio library'), findsOneWidget);
     expect(
       tester.widget<TextField>(find.byType(TextField)).decoration!.hintText,
-      'Search names',
+      'Filter by name',
     );
   });
 

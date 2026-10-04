@@ -25,7 +25,7 @@
   "settingsColorIndigo": "Indigo",
   "settingsColorGreen": "Green",
   "settingsColorPurple": "Purple",
-  "searchHint": "Search names",
+  "searchHint": "Filter by name",
   "clearSearch": "Clear search",
   "loadErrorTitle": "Could not load audio files",
   "loadErrorMessage": "Check the audio assets and try again.",

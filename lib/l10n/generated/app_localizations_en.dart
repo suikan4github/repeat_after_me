@@ -87,7 +87,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settingsColorPurple => 'Purple';
 
   @override
-  String get searchHint => 'Search names';
+  String get searchHint => 'Filter by name';
 
   @override
   String get clearSearch => 'Clear search';
