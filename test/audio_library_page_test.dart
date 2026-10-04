@@ -118,6 +118,59 @@ void main() {
     expect(player.startedAssetPaths, hasLength(2));
     expect(player.startedAssetPaths.last, endsWith('$tappedTitle.m4a'));
   });
+
+  group('auto stop timer', () {
+    bool isContinuous(WidgetTester tester) =>
+        tester
+            .widget<IconButton>(find.widgetWithIcon(IconButton, Icons.repeat))
+            .onPressed ==
+        null;
+
+    testWidgets('stops continuous playback after 15 minutes', (tester) async {
+      final player = _ControlledAudioPlayer();
+      await _pumpPage(tester, player);
+
+      await tester.tap(find.byTooltip('Play continuously'));
+      await tester.pump();
+      await tester.pump();
+
+      await tester.pump(const Duration(minutes: 14, seconds: 59));
+      expect(isContinuous(tester), isTrue);
+
+      await tester.pump(const Duration(seconds: 1));
+      await tester.pump();
+      expect(isContinuous(tester), isFalse);
+      expect(player.playing, isFalse);
+    });
+
+    testWidgets('manual stop cancels the timer and restart resets it', (
+      tester,
+    ) async {
+      final player = _ControlledAudioPlayer();
+      await _pumpPage(tester, player);
+
+      await tester.tap(find.byTooltip('Play continuously'));
+      await tester.pump();
+      await tester.pump();
+      await tester.pump(const Duration(minutes: 10));
+      await tester.tap(find.byTooltip('Stop playback'));
+      await tester.pump();
+      expect(isContinuous(tester), isFalse);
+
+      await tester.pump(const Duration(minutes: 10));
+      await tester.tap(find.byTooltip('Play continuously'));
+      await tester.pump();
+      await tester.pump();
+
+      // The old timer would have fired here, 5 minutes after the restart.
+      await tester.pump(const Duration(minutes: 14, seconds: 59));
+      expect(isContinuous(tester), isTrue);
+
+      await tester.pump(const Duration(seconds: 1));
+      await tester.pump();
+      expect(isContinuous(tester), isFalse);
+    });
+  });
 }
 
 Future<void> _pumpPage(WidgetTester tester, AudioPlayer player) async {
