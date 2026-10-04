@@ -1,21 +1,24 @@
 # Repeat After Me
 
-An audio phrase library for language study. The app lists the names of `.m4a` files in `assets/audio/` and lets you search them.
+An audio phrase library for language study. The app lists the names of `.m4a` files in `assets/audio/` and plays them when you tap them. You can also filter the list by name.
 
 ## Features
 
+The app provides the following features:
+
 - Lists audio filenames without their `.m4a` extension
 - Filters names incrementally as you type
-- Plays an audio file when its list item is selected; select it again to pause
-- Plays the list continuously with the repeat button next to the title, and stops with the stop button: it starts from the most recently played item (or the first one), plays top to bottom with a 1-second gap after each item, and loops back to the top; item play buttons are disabled meanwhile
-- Stops continuous playback automatically 15 minutes after it starts; stopping it manually cancels the timer, and starting it again restarts the 15 minutes
+- Plays an audio file when you tap its list item; tap it again to pause
+- Plays the list continuously with the repeat button next to the title, and stops with the stop button: it starts from the most recently played item and plays from top to bottom. After the last item, it returns to the first.
+- Continuous playback stops automatically 15 minutes after it starts
 - Uses Japanese when the system language is Japanese, and English otherwise
 - Supports a custom seed color, color scheme variant, or system colors
-- Saves appearance settings on the device and restores them on the next launch
 
 ## Adding Audio Files
 
-Add `.m4a` files to `assets/audio/`. For example:
+The audio folder is empty by default. Add `.m4a` files to `assets/audio/`.
+
+For example:
 
 ```text
 assets/audio/
@@ -23,16 +26,11 @@ assets/audio/
 └── good_morning.m4a
 ```
 
-The app displays these files as `hello` and `good_morning`. Restart the Flutter app or rebuild it after adding files.
+The app displays these files as `hello` and `good_morning`. Rebuild the app after adding files.
 
 ## Development
 
-Run these commands in an environment with the Flutter SDK installed:
-
-```sh
-flutter pub get
-flutter run
-```
+Run these commands in an environment with the Flutter SDK installed. In VS Code, using the Dev Container sets up the development environment automatically.
 
 Run tests:
 
