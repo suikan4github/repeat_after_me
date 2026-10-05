@@ -6,6 +6,7 @@
 // tree, read text, and verify that the values of widget properties are correct.
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -278,6 +279,23 @@ void main() {
   ) async {
     tester.platformDispatcher.localesTestValue = const [Locale('ja', 'JP')];
     addTearDown(tester.platformDispatcher.clearLocalesTestValue);
+    const packageInfoChannel = MethodChannel(
+      'dev.fluttercommunity.plus/package_info',
+    );
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(
+          packageInfoChannel,
+          (call) async => {
+            'appName': 'Repeat After Me',
+            'packageName': 'com.example.repeat_after_me',
+            'version': '1.0.0',
+            'buildNumber': '6',
+          },
+        );
+    addTearDown(
+      () => TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(packageInfoChannel, null),
+    );
 
     await tester.pumpWidget(const MyApp());
     await tester.pumpAndSettle();
@@ -286,7 +304,7 @@ void main() {
     await tester.tap(find.text('バージョン情報'));
     await tester.pumpAndSettle();
 
-    expect(find.text('0.2.2'), findsOneWidget);
+    expect(find.text('1.0.0'), findsOneWidget);
     expect(find.text('© 2026 HORIE Seiichi'), findsOneWidget);
   });
 
