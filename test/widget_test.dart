@@ -13,10 +13,93 @@ import 'package:repeat_after_me/app_settings.dart';
 import 'package:repeat_after_me/l10n/generated/app_localizations.dart';
 import 'package:repeat_after_me/main.dart';
 import 'package:repeat_after_me/settings_page.dart';
+import 'package:saf_util/saf_util_platform_interface.dart';
+
+class _FakeSafUtil extends SafUtilPlatform {
+  int listCalls = 0;
+  bool failNextList = false;
+
+  @override
+  Future<List<SafDocumentFile>> list(String uri) async {
+    listCalls++;
+    if (failNextList) {
+      failNextList = false;
+      throw Exception('folder unavailable');
+    }
+    SafDocumentFile file(String name, {bool isDir = false}) => SafDocumentFile(
+      uri: '$uri/$name',
+      name: name,
+      isDir: isDir,
+      length: 1,
+      lastModified: 1,
+    );
+    return [file('hello.m4a'), file('notes.txt'), file('sub.m4a', isDir: true)];
+  }
+}
 
 void main() {
   setUp(() => SharedPreferences.setMockInitialValues({}));
 
+  group('with an audio folder selected', () {
+    late _FakeSafUtil safUtil;
+
+    setUp(() {
+      SharedPreferences.setMockInitialValues({
+        'settings.audioDirectoryUri': 'content://tree/music',
+        'settings.audioDirectoryName': 'music',
+      });
+      safUtil = _FakeSafUtil();
+      SafUtilPlatform.instance = safUtil;
+    });
+
+    testWidgets('lists only .m4a files directly in the folder', (
+      WidgetTester tester,
+    ) async {
+      tester.platformDispatcher.localesTestValue = const [Locale('en', 'US')];
+      addTearDown(tester.platformDispatcher.clearLocalesTestValue);
+
+      await tester.pumpWidget(const MyApp());
+      await tester.pumpAndSettle();
+
+      expect(find.text('hello'), findsOneWidget);
+      expect(find.text('notes'), findsNothing);
+      expect(find.text('sub'), findsNothing);
+    });
+
+    testWidgets('reloads the list from the refresh button', (
+      WidgetTester tester,
+    ) async {
+      tester.platformDispatcher.localesTestValue = const [Locale('en', 'US')];
+      addTearDown(tester.platformDispatcher.clearLocalesTestValue);
+
+      await tester.pumpWidget(const MyApp());
+      await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('Reload'));
+      await tester.pumpAndSettle();
+
+      expect(tester.takeException(), isNull);
+      expect(safUtil.listCalls, 2);
+      expect(find.text('hello'), findsOneWidget);
+    });
+
+    testWidgets('recovers through the retry button after a load error', (
+      WidgetTester tester,
+    ) async {
+      tester.platformDispatcher.localesTestValue = const [Locale('en', 'US')];
+      addTearDown(tester.platformDispatcher.clearLocalesTestValue);
+      safUtil.failNextList = true;
+
+      await tester.pumpWidget(const MyApp());
+      await tester.pumpAndSettle();
+      expect(find.text('Could not load audio files'), findsOneWidget);
+
+      await tester.tap(find.text('Retry'));
+      await tester.pumpAndSettle();
+
+      expect(tester.takeException(), isNull);
+      expect(find.text('hello'), findsOneWidget);
+    });
+  });
   testWidgets('uses Japanese for Japanese system locales', (
     WidgetTester tester,
   ) async {

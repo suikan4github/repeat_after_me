@@ -48,6 +48,17 @@ class SettingsPage extends StatelessWidget {
               children: [
                 _sectionHeader(
                   context,
+                  Icons.folder_outlined,
+                  l10n.settingsAudioFolder,
+                ),
+                const SizedBox(height: 12),
+                ListenableBuilder(
+                  listenable: settings,
+                  builder: (context, _) => _audioFolderTile(context, l10n),
+                ),
+                const SizedBox(height: 24),
+                _sectionHeader(
+                  context,
                   Icons.wallpaper_outlined,
                   l10n.settingsColorScheme,
                 ),
@@ -140,6 +151,22 @@ class SettingsPage extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+
+  Widget _audioFolderTile(BuildContext context, AppLocalizations l10n) {
+    final name = settings.audioDirectoryName;
+    return ListTile(
+      onTap: settings.pickAudioDirectory,
+      title: Text(name ?? l10n.settingsAudioFolderNotSet),
+      subtitle: Text(l10n.settingsChooseAudioFolder),
+      trailing: name == null
+          ? null
+          : IconButton(
+              tooltip: l10n.settingsClearAudioFolder,
+              onPressed: settings.clearAudioDirectory,
+              icon: const Icon(Icons.close),
+            ),
     );
   }
 

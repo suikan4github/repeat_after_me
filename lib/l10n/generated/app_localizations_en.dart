@@ -39,6 +39,18 @@ class AppLocalizationsEn extends AppLocalizations {
   String get about => 'About';
 
   @override
+  String get settingsAudioFolder => 'Audio folder';
+
+  @override
+  String get settingsAudioFolderNotSet => 'Not set';
+
+  @override
+  String get settingsChooseAudioFolder => 'Choose folder';
+
+  @override
+  String get settingsClearAudioFolder => 'Clear folder';
+
+  @override
   String get settingsColorScheme => 'Color scheme';
 
   @override
@@ -102,16 +114,25 @@ class AppLocalizationsEn extends AppLocalizations {
   String get loadErrorTitle => 'Could not load audio files';
 
   @override
-  String get loadErrorMessage => 'Check the audio assets and try again.';
+  String get loadErrorMessage => 'Check the audio folder and try again.';
 
   @override
   String get retry => 'Retry';
 
   @override
+  String get refresh => 'Reload';
+
+  @override
+  String get noFolderTitle => 'No audio folder selected';
+
+  @override
+  String get noFolderMessage => 'Choose a folder that contains .m4a files.';
+
+  @override
   String get emptyTitle => 'No audio files yet';
 
   @override
-  String get emptyMessage => 'Add .m4a files to assets/audio/.';
+  String get emptyMessage => 'Add .m4a files directly to the selected folder.';
 
   @override
   String get noMatchesTitle => 'No matches found';

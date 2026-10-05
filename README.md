@@ -1,6 +1,6 @@
 # Repeat After Me
 
-An audio phrase library for language study. The app lists the names of `.m4a` files in `assets/audio/` and plays them when you tap them. You can also filter the list by name.
+An audio phrase library for language study. The app lists the names of `.m4a` files in a folder you choose on an Android device and lets you search them.
 
 ## Features
 
@@ -13,20 +13,15 @@ The app provides the following features:
 - Continuous playback stops automatically 15 minutes after it starts
 - Uses Japanese when the system language is Japanese, and English otherwise
 - Supports a custom seed color, color scheme variant, or system colors
+- Saves the audio folder and appearance settings on the device and restores them on the next launch
 
 ## Adding Audio Files
 
-The audio folder is empty by default. Add `.m4a` files to `assets/audio/`.
+Copy `.m4a` files into any folder on the device, for example over USB. In the app, open Settings and choose that folder under "Audio folder". The choice is kept after the app restarts.
 
-For example:
+Only `.m4a` files directly inside the folder are listed; subfolders are ignored. The app displays `hello.m4a` as `hello`. Use the reload button on the main page after adding files.
 
-```text
-assets/audio/
-├── hello.m4a
-└── good_morning.m4a
-```
-
-The app displays these files as `hello` and `good_morning`. Rebuild the app after adding files.
+Android 11 and later do not allow selecting the storage root or the Download folder itself, so create a subfolder such as `Music/repeat_after_me` and choose that.
 
 ## Development
 
@@ -37,15 +32,6 @@ Run tests:
 ```sh
 flutter test
 ```
-
-Build for the web:
-
-```sh
-flutter build web
-```
-
-Build output is written to `build/web/`. Audio playback on the web depends on the browser's M4A/AAC support.
-
 ## Screenshots
 
 Here are some screenshots of the app.

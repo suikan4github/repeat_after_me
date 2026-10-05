@@ -1,12 +1,15 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:just_audio/just_audio.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:repeat_after_me/app_settings.dart';
 import 'package:repeat_after_me/l10n/generated/app_localizations.dart';
 import 'package:repeat_after_me/settings_page.dart';
 import 'package:repeat_after_me/widgets/app_navigation_drawer.dart';
+import 'package:saf_stream/saf_stream.dart';
+import 'package:saf_util/saf_util.dart';
 
 class AudioLibraryPage extends StatefulWidget {
   const AudioLibraryPage({
@@ -23,14 +26,17 @@ class AudioLibraryPage extends StatefulWidget {
 }
 
 class _AudioLibraryPageState extends State<AudioLibraryPage> {
-  static const _assetDirectory = 'assets/audio/';
+  static const _extension = '.m4a';
   static const _continuousPlaybackInterval = Duration(seconds: 1);
   static const _continuousPlaybackLimit = Duration(minutes: 15);
+  final _safUtil = SafUtil();
+  final _safStream = SafStream();
   final _searchController = TextEditingController();
   late Future<List<_AudioEntry>> _audioNamesFuture;
+  String? _loadedDirectoryUri;
   AudioPlayer? _player;
   StreamSubscription<PlayerState>? _playerStateSubscription;
-  String? _playingAssetPath;
+  String? _playingUri;
   bool _isPlaying = false;
   bool _isContinuousPlaying = false;
   Timer? _autoStopTimer;
@@ -46,40 +52,83 @@ class _AudioLibraryPageState extends State<AudioLibraryPage> {
   void initState() {
     super.initState();
     _audioNamesFuture = _loadAudioNames();
+    widget.settings.addListener(_onSettingsChanged);
   }
 
   @override
   void dispose() {
     _autoStopTimer?.cancel();
+    widget.settings.removeListener(_onSettingsChanged);
     _searchController.dispose();
     unawaited(_playerStateSubscription?.cancel());
     unawaited(_player?.dispose());
     super.dispose();
   }
 
+  void _onSettingsChanged() {
+    if (widget.settings.audioDirectoryUri == _loadedDirectoryUri) return;
+    unawaited(_player?.stop());
+    setState(() {
+      _playingUri = null;
+      _isPlaying = false;
+      _audioNamesFuture = _loadAudioNames();
+    });
+  }
+
+  void _reload() {
+    setState(() {
+      _audioNamesFuture = _loadAudioNames();
+    });
+  }
+
   Future<List<_AudioEntry>> _loadAudioNames() async {
-    final manifest = await AssetManifest.loadFromAssetBundle(rootBundle);
-    final names =
-        manifest
-            .listAssets()
-            .where(
-              (path) =>
-                  path.startsWith(_assetDirectory) &&
-                  path.toLowerCase().endsWith('.m4a'),
-            )
-            .map((path) {
-              final filename = path.split('/').last;
-              return _AudioEntry(
-                assetPath: path,
-                name: filename.substring(0, filename.length - 4),
-              );
-            })
-            .toList()
-          ..sort(
-            (first, second) =>
-                first.name.toLowerCase().compareTo(second.name.toLowerCase()),
-          );
-    return names;
+    final directoryUri = widget.settings.audioDirectoryUri;
+    _loadedDirectoryUri = directoryUri;
+    if (directoryUri == null) return const [];
+
+    final files = await _safUtil.list(directoryUri);
+    return files
+        .where(
+          (file) => !file.isDir && file.name.toLowerCase().endsWith(_extension),
+        )
+        .map(
+          (file) => _AudioEntry(
+            uri: file.uri,
+            name: file.name.substring(0, file.name.length - _extension.length),
+            length: file.length,
+            lastModified: file.lastModified,
+          ),
+        )
+        .toList()
+      ..sort(
+        (first, second) =>
+            first.name.toLowerCase().compareTo(second.name.toLowerCase()),
+      );
+  }
+
+  Future<Directory> _cacheDirectory() async {
+    final root = await getTemporaryDirectory();
+    return Directory('${root.path}/audio_cache').create(recursive: true);
+  }
+
+  /// The player needs a file path, so the SAF file is copied into the cache.
+  Future<String> _prepareLocalFile(_AudioEntry entry) async {
+    final directory = await _cacheDirectory();
+    final key = '${entry.uri.hashCode}_${entry.lastModified}_${entry.length}';
+    final target = File('${directory.path}/${entry.name}_$key$_extension');
+    if (!await target.exists()) {
+      final partial = '${target.path}.part';
+      await _safStream.copyToLocalFile(entry.uri, partial);
+      await File(partial).rename(target.path);
+    }
+    return target.path;
+  }
+
+  Future<void> _clearCacheExcept(String keepPath) async {
+    final directory = await _cacheDirectory();
+    await for (final item in directory.list()) {
+      if (item is File && item.path != keepPath) await item.delete();
+    }
   }
 
   AudioPlayer _getPlayer() {
@@ -93,7 +142,7 @@ class _AudioLibraryPageState extends State<AudioLibraryPage> {
       setState(() {
         _isPlaying = state.playing;
         if (state.processingState == ProcessingState.completed) {
-          if (!_isContinuousPlaying) _playingAssetPath = null;
+          if (!_isContinuousPlaying) _playingUri = null;
           _isPlaying = false;
         }
       });
@@ -105,12 +154,12 @@ class _AudioLibraryPageState extends State<AudioLibraryPage> {
     final player = _getPlayer();
     final generation = ++_playbackGeneration;
     _autoStopTimer?.cancel();
-    if (_isContinuousPlaying && _playingAssetPath != null) {
-      _recordContinuousPlaybackEnd(_playingAssetPath!);
+    if (_isContinuousPlaying && _playingUri != null) {
+      _recordContinuousPlaybackEnd(_playingUri!);
     }
     setState(() => _isContinuousPlaying = false);
     try {
-      if (_playingAssetPath == entry.assetPath) {
+      if (_playingUri == entry.uri) {
         if (player.playing) {
           await player.pause();
         } else {
@@ -121,23 +170,25 @@ class _AudioLibraryPageState extends State<AudioLibraryPage> {
       }
 
       setState(() {
-        _playingAssetPath = entry.assetPath;
+        _playingUri = entry.uri;
         _isPlaying = false;
       });
-      // A completed source leaves `playing` true, which would make play() a no-op.
       await player.stop();
       if (generation != _playbackGeneration) return;
-      await player.setAsset(entry.assetPath);
+      final path = await _prepareLocalFile(entry);
+      if (generation != _playbackGeneration) return;
+      await player.setFilePath(path);
       if (generation != _playbackGeneration) return;
       _recordUserPlayback(entry);
+      unawaited(_clearCacheExcept(path));
       await player.play();
     } catch (error, stackTrace) {
       if (generation != _playbackGeneration) return;
-      debugPrint('Audio playback failed for ${entry.assetPath}: $error');
+      debugPrint('Audio playback failed for ${entry.uri}: $error');
       debugPrintStack(stackTrace: stackTrace);
       if (!mounted) return;
       setState(() {
-        _playingAssetPath = null;
+        _playingUri = null;
         _isPlaying = false;
       });
       ScaffoldMessenger.of(context).showSnackBar(
@@ -149,7 +200,7 @@ class _AudioLibraryPageState extends State<AudioLibraryPage> {
   }
 
   void _recordUserPlayback(_AudioEntry entry) {
-    _lastUserPlayedAssetPath = entry.assetPath;
+    _lastUserPlayedAssetPath = entry.uri;
     _lastUserPlaybackOrder = ++_playbackActivityOrder;
   }
 
@@ -180,9 +231,7 @@ class _AudioLibraryPageState extends State<AudioLibraryPage> {
       final lastPath = lastPlayedOrder > lastEndedOrder
           ? _lastUserPlayedAssetPath
           : _lastContinuousEndedAssetPath;
-      final lastIndex = entries.indexWhere(
-        (entry) => entry.assetPath == lastPath,
-      );
+      final lastIndex = entries.indexWhere((entry) => entry.uri == lastPath);
       var index = lastIndex < 0 ? 0 : lastIndex;
 
       await player.stop();
@@ -192,10 +241,12 @@ class _AudioLibraryPageState extends State<AudioLibraryPage> {
         // next play() a no-op; stop() resets it so the new source is audible.
         await player.stop();
         if (!_isCurrentContinuousPlayback(generation)) return;
-        await player.setAsset(entry.assetPath);
+        final path = await _prepareLocalFile(entry);
+        await player.setFilePath(path);
+        unawaited(_clearCacheExcept(path));
         if (!_isCurrentContinuousPlayback(generation)) return;
         setState(() {
-          _playingAssetPath = entry.assetPath;
+          _playingUri = entry.uri;
           _isPlaying = false;
         });
         final completion = player.playerStateStream.firstWhere(
@@ -211,7 +262,7 @@ class _AudioLibraryPageState extends State<AudioLibraryPage> {
           return;
         }
 
-        _recordContinuousPlaybackEnd(entry.assetPath);
+        _recordContinuousPlaybackEnd(entry.uri);
         await Future<void>.delayed(_continuousPlaybackInterval);
         if (!_isCurrentContinuousPlayback(generation)) return;
         index = (index + 1) % entries.length;
@@ -224,7 +275,7 @@ class _AudioLibraryPageState extends State<AudioLibraryPage> {
       if (!mounted) return;
       setState(() {
         _isContinuousPlaying = false;
-        _playingAssetPath = null;
+        _playingUri = null;
         _isPlaying = false;
       });
       ScaffoldMessenger.of(context).showSnackBar(
@@ -238,23 +289,23 @@ class _AudioLibraryPageState extends State<AudioLibraryPage> {
   bool _isCurrentContinuousPlayback(int generation) =>
       mounted && _isContinuousPlaying && generation == _playbackGeneration;
 
-  void _recordContinuousPlaybackEnd(String assetPath) {
-    _lastContinuousEndedAssetPath = assetPath;
+  void _recordContinuousPlaybackEnd(String uri) {
+    _lastContinuousEndedAssetPath = uri;
     _lastContinuousEndOrder = ++_playbackActivityOrder;
   }
 
   Future<void> _stopPlayback() async {
     ++_playbackGeneration;
     _autoStopTimer?.cancel();
-    if (_isContinuousPlaying && _playingAssetPath != null) {
-      _recordContinuousPlaybackEnd(_playingAssetPath!);
+    if (_isContinuousPlaying && _playingUri != null) {
+      _recordContinuousPlaybackEnd(_playingUri!);
     }
     setState(() => _isContinuousPlaying = false);
     try {
       await _player?.stop();
       if (!mounted) return;
       setState(() {
-        _playingAssetPath = null;
+        _playingUri = null;
         _isPlaying = false;
       });
     } catch (error, stackTrace) {
@@ -291,6 +342,14 @@ class _AudioLibraryPageState extends State<AudioLibraryPage> {
           l10n.appTitle,
           style: TextStyle(fontWeight: FontWeight.w700),
         ),
+        actions: [
+          if (widget.settings.audioDirectoryUri != null)
+            IconButton(
+              tooltip: l10n.refresh,
+              onPressed: _reload,
+              icon: const Icon(Icons.refresh),
+            ),
+        ],
       ),
       body: Center(
         child: ConstrainedBox(
@@ -321,8 +380,7 @@ class _AudioLibraryPageState extends State<AudioLibraryPage> {
                     ),
                     IconButton(
                       tooltip: l10n.stopPlayback,
-                      onPressed:
-                          !_isContinuousPlaying && _playingAssetPath == null
+                      onPressed: !_isContinuousPlaying && _playingUri == null
                           ? null
                           : _stopPlayback,
                       icon: const Icon(Icons.stop),
@@ -364,126 +422,161 @@ class _AudioLibraryPageState extends State<AudioLibraryPage> {
                 ),
                 const SizedBox(height: 24),
                 Expanded(
-                  child: FutureBuilder<List<_AudioEntry>>(
-                    future: _audioNamesFuture,
-                    builder: (context, snapshot) {
-                      if (snapshot.connectionState != ConnectionState.done) {
-                        return const Center(child: CircularProgressIndicator());
-                      }
-                      if (snapshot.hasError) {
-                        debugPrint('Audio asset load error: ${snapshot.error}');
-                        return _MessageState(
-                          icon: Icons.warning_amber_rounded,
-                          title: l10n.loadErrorTitle,
-                          message: l10n.loadErrorMessage,
-                          action: TextButton.icon(
-                            onPressed: () => setState(
-                              () => _audioNamesFuture = _loadAudioNames(),
-                            ),
-                            icon: const Icon(Icons.refresh),
-                            label: Text(l10n.retry),
+                  child: widget.settings.audioDirectoryUri == null
+                      ? _MessageState(
+                          icon: Icons.folder_open,
+                          title: l10n.noFolderTitle,
+                          message: l10n.noFolderMessage,
+                          action: FilledButton.icon(
+                            onPressed: widget.settings.pickAudioDirectory,
+                            icon: const Icon(Icons.folder_open),
+                            label: Text(l10n.settingsChooseAudioFolder),
                           ),
-                        );
-                      }
-
-                      final allNames = snapshot.data ?? const <_AudioEntry>[];
-                      final query = _query.trim().toLowerCase();
-                      final filteredNames = allNames
-                          .where(
-                            (entry) => entry.name.toLowerCase().contains(query),
-                          )
-                          .toList();
-
-                      if (filteredNames.isEmpty) {
-                        return _MessageState(
-                          icon: query.isEmpty
-                              ? Icons.library_music_outlined
-                              : Icons.search_off,
-                          title: query.isEmpty
-                              ? l10n.emptyTitle
-                              : l10n.noMatchesTitle,
-                          message: query.isEmpty
-                              ? l10n.emptyMessage
-                              : l10n.noMatchesMessage,
-                        );
-                      }
-
-                      return Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Padding(
-                            padding: const EdgeInsets.only(bottom: 8),
-                            child: Text(
-                              l10n.itemCount(filteredNames.length),
-                              style: Theme.of(context).textTheme.labelMedium
-                                  ?.copyWith(
-                                    color: colors.onSurfaceVariant,
-                                    fontWeight: FontWeight.w700,
-                                  ),
-                            ),
-                          ),
-                          Expanded(
-                            child: ListView.separated(
-                              itemCount: filteredNames.length,
-                              separatorBuilder: (context, index) => Divider(
-                                height: 1,
-                                color: colors.outlineVariant,
-                              ),
-                              itemBuilder: (context, index) {
-                                final entry = filteredNames[index];
-                                final isCurrent =
-                                    _playingAssetPath == entry.assetPath;
-                                final isPlaying = isCurrent && _isPlaying;
-                                return ListTile(
-                                  contentPadding: const EdgeInsets.symmetric(
-                                    horizontal: 4,
-                                  ),
-                                  onTap: _isContinuousPlaying
-                                      ? null
-                                      : () => _togglePlayback(entry),
-                                  leading: Container(
-                                    width: 40,
-                                    height: 40,
-                                    decoration: BoxDecoration(
-                                      color: colors.primaryContainer,
-                                      borderRadius: BorderRadius.circular(8),
+                        )
+                      : FutureBuilder<List<_AudioEntry>>(
+                          future: _audioNamesFuture,
+                          builder: (context, snapshot) {
+                            if (snapshot.connectionState !=
+                                ConnectionState.done) {
+                              return const Center(
+                                child: CircularProgressIndicator(),
+                              );
+                            }
+                            if (snapshot.hasError) {
+                              debugPrint(
+                                'Audio folder load error: ${snapshot.error}',
+                              );
+                              return _MessageState(
+                                icon: Icons.warning_amber_rounded,
+                                title: l10n.loadErrorTitle,
+                                message: l10n.loadErrorMessage,
+                                action: Wrap(
+                                  spacing: 8,
+                                  children: [
+                                    TextButton.icon(
+                                      onPressed: _reload,
+                                      icon: const Icon(Icons.refresh),
+                                      label: Text(l10n.retry),
                                     ),
-                                    child: Icon(
-                                      Icons.graphic_eq,
-                                      color: colors.onPrimaryContainer,
+                                    TextButton.icon(
+                                      onPressed:
+                                          widget.settings.pickAudioDirectory,
+                                      icon: const Icon(Icons.folder_open),
+                                      label: Text(
+                                        l10n.settingsChooseAudioFolder,
+                                      ),
                                     ),
-                                  ),
-                                  title: Text(
-                                    entry.name,
+                                  ],
+                                ),
+                              );
+                            }
+
+                            final allNames =
+                                snapshot.data ?? const <_AudioEntry>[];
+                            final query = _query.trim().toLowerCase();
+                            final filteredNames = allNames
+                                .where(
+                                  (entry) =>
+                                      entry.name.toLowerCase().contains(query),
+                                )
+                                .toList();
+
+                            if (filteredNames.isEmpty) {
+                              return _MessageState(
+                                icon: query.isEmpty
+                                    ? Icons.library_music_outlined
+                                    : Icons.search_off,
+                                title: query.isEmpty
+                                    ? l10n.emptyTitle
+                                    : l10n.noMatchesTitle,
+                                message: query.isEmpty
+                                    ? l10n.emptyMessage
+                                    : l10n.noMatchesMessage,
+                              );
+                            }
+
+                            return Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Padding(
+                                  padding: const EdgeInsets.only(bottom: 8),
+                                  child: Text(
+                                    l10n.itemCount(filteredNames.length),
                                     style: Theme.of(context)
                                         .textTheme
-                                        .titleMedium
+                                        .labelMedium
                                         ?.copyWith(
-                                          color: colors.onSurface,
-                                          fontWeight: FontWeight.w600,
+                                          color: colors.onSurfaceVariant,
+                                          fontWeight: FontWeight.w700,
                                         ),
                                   ),
-                                  trailing: IconButton(
-                                    tooltip: isPlaying
-                                        ? l10n.pauseAudio
-                                        : l10n.playAudio,
-                                    onPressed: _isContinuousPlaying
-                                        ? null
-                                        : () => _togglePlayback(entry),
-                                    icon: Icon(
-                                      isPlaying
-                                          ? Icons.pause
-                                          : Icons.play_arrow,
-                                    ),
+                                ),
+                                Expanded(
+                                  child: ListView.separated(
+                                    itemCount: filteredNames.length,
+                                    separatorBuilder: (context, index) =>
+                                        Divider(
+                                          height: 1,
+                                          color: colors.outlineVariant,
+                                        ),
+                                    itemBuilder: (context, index) {
+                                      final entry = filteredNames[index];
+                                      final isCurrent =
+                                          _playingUri == entry.uri;
+                                      final isPlaying = isCurrent && _isPlaying;
+                                      return ListTile(
+                                        contentPadding:
+                                            const EdgeInsets.symmetric(
+                                              horizontal: 4,
+                                            ),
+                                        onTap: _isContinuousPlaying
+                                            ? null
+                                            : () => _togglePlayback(entry),
+                                        leading: Container(
+                                          width: 40,
+                                          height: 40,
+                                          decoration: BoxDecoration(
+                                            color: colors.primaryContainer,
+                                            borderRadius: BorderRadius.circular(
+                                              8,
+                                            ),
+                                          ),
+                                          child: Icon(
+                                            Icons.graphic_eq,
+                                            color: colors.onPrimaryContainer,
+                                          ),
+                                        ),
+                                        title: Text(
+                                          entry.name,
+                                          style: Theme.of(context)
+                                              .textTheme
+                                              .titleMedium
+                                              ?.copyWith(
+                                                color: colors.onSurface,
+                                                fontWeight: FontWeight.w600,
+                                              ),
+                                        ),
+                                        trailing: IconButton(
+                                          tooltip: isPlaying
+                                              ? l10n.pauseAudio
+                                              : l10n.playAudio,
+                                          onPressed: _isContinuousPlaying
+                                              ? null
+                                              : () => _togglePlayback(entry),
+                                          icon: Icon(
+                                            isPlaying
+                                                ? Icons.pause
+                                                : Icons.play_arrow,
+                                          ),
+                                        ),
+                                      );
+                                    },
                                   ),
-                                );
-                              },
-                            ),
-                          ),
-                        ],
-                      );
-                    },
-                  ),
+                                ),
+                              ],
+                            );
+                          },
+                        ),
                 ),
               ],
             ),
@@ -495,10 +588,17 @@ class _AudioLibraryPageState extends State<AudioLibraryPage> {
 }
 
 class _AudioEntry {
-  const _AudioEntry({required this.assetPath, required this.name});
+  const _AudioEntry({
+    required this.uri,
+    required this.name,
+    required this.length,
+    required this.lastModified,
+  });
 
-  final String assetPath;
+  final String uri;
   final String name;
+  final int length;
+  final int lastModified;
 }
 
 class _MessageState extends StatelessWidget {

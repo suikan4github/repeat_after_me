@@ -158,6 +158,30 @@ abstract class AppLocalizations {
   /// **'About'**
   String get about;
 
+  /// No description provided for @settingsAudioFolder.
+  ///
+  /// In en, this message translates to:
+  /// **'Audio folder'**
+  String get settingsAudioFolder;
+
+  /// No description provided for @settingsAudioFolderNotSet.
+  ///
+  /// In en, this message translates to:
+  /// **'Not set'**
+  String get settingsAudioFolderNotSet;
+
+  /// No description provided for @settingsChooseAudioFolder.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose folder'**
+  String get settingsChooseAudioFolder;
+
+  /// No description provided for @settingsClearAudioFolder.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear folder'**
+  String get settingsClearAudioFolder;
+
   /// No description provided for @settingsColorScheme.
   ///
   /// In en, this message translates to:
@@ -287,7 +311,7 @@ abstract class AppLocalizations {
   /// No description provided for @loadErrorMessage.
   ///
   /// In en, this message translates to:
-  /// **'Check the audio assets and try again.'**
+  /// **'Check the audio folder and try again.'**
   String get loadErrorMessage;
 
   /// No description provided for @retry.
@@ -295,6 +319,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Retry'**
   String get retry;
+
+  /// No description provided for @refresh.
+  ///
+  /// In en, this message translates to:
+  /// **'Reload'**
+  String get refresh;
+
+  /// No description provided for @noFolderTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'No audio folder selected'**
+  String get noFolderTitle;
+
+  /// No description provided for @noFolderMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose a folder that contains .m4a files.'**
+  String get noFolderMessage;
 
   /// No description provided for @emptyTitle.
   ///
@@ -305,7 +347,7 @@ abstract class AppLocalizations {
   /// No description provided for @emptyMessage.
   ///
   /// In en, this message translates to:
-  /// **'Add .m4a files to assets/audio/.'**
+  /// **'Add .m4a files directly to the selected folder.'**
   String get emptyMessage;
 
   /// No description provided for @noMatchesTitle.
