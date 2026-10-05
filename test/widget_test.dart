@@ -393,4 +393,23 @@ void main() {
     expect(restored.seedColor, const Color(0xFF008577));
     expect(restored.schemeVariant, DynamicSchemeVariant.monochrome);
   });
+
+  test(
+    'keeps the five most recent distinct search words, newest first',
+    () async {
+      final settings = await AppSettings.load();
+      for (final word in ['a', 'b', 'c', 'd', 'e', 'f', ' ', 'c']) {
+        await settings.addSearchHistory(word);
+      }
+
+      expect(settings.searchHistory, ['c', 'f', 'e', 'd', 'b']);
+      expect((await AppSettings.load()).searchHistory, [
+        'c',
+        'f',
+        'e',
+        'd',
+        'b',
+      ]);
+    },
+  );
 }

@@ -40,6 +40,7 @@ class _AudioLibraryPageState extends State<AudioLibraryPage> {
   final _safStream = SafStream();
   late final AudioMetadataIndex _metadataIndex;
   final _searchController = TextEditingController();
+  final _searchFocusNode = FocusNode();
   late Future<_AudioLibraryData> _audioLibraryFuture;
   String? _loadedDirectoryUri;
   String _loadedSubdirectoryPath = '/';
@@ -62,14 +63,30 @@ class _AudioLibraryPageState extends State<AudioLibraryPage> {
   void initState() {
     super.initState();
     _metadataIndex = widget.metadataIndex ?? AudioMetadataIndex();
+    _query = widget.settings.searchQuery;
+    _searchController.text = _query;
+    _searchFocusNode.addListener(_onSearchFocusChanged);
     _audioLibraryFuture = _loadAudioLibrary();
     widget.settings.addListener(_onSettingsChanged);
+  }
+
+  void _onSearchFocusChanged() {
+    if (!_searchFocusNode.hasFocus) {
+      unawaited(widget.settings.addSearchHistory(_query));
+    }
+    setState(() {});
+  }
+
+  void _setQuery(String value) {
+    setState(() => _query = value);
+    unawaited(widget.settings.setSearchQuery(value));
   }
 
   @override
   void dispose() {
     _autoStopTimer?.cancel();
     widget.settings.removeListener(_onSettingsChanged);
+    _searchFocusNode.dispose();
     _searchController.dispose();
     unawaited(_playerStateSubscription?.cancel());
     unawaited(_player?.dispose());
@@ -316,6 +333,7 @@ class _AudioLibraryPageState extends State<AudioLibraryPage> {
   }
 
   Future<void> _togglePlayback(_AudioEntry entry) async {
+    _searchFocusNode.unfocus();
     final player = _getPlayer();
     final generation = ++_playbackGeneration;
     _autoStopTimer?.cancel();
@@ -370,6 +388,7 @@ class _AudioLibraryPageState extends State<AudioLibraryPage> {
   }
 
   Future<void> _startContinuousPlayback() async {
+    _searchFocusNode.unfocus();
     final generation = ++_playbackGeneration;
     final player = _getPlayer();
     _autoStopTimer?.cancel();
@@ -623,7 +642,11 @@ class _AudioLibraryPageState extends State<AudioLibraryPage> {
                 const SizedBox(height: 20),
                 TextField(
                   controller: _searchController,
-                  onChanged: (value) => setState(() => _query = value),
+                  focusNode: _searchFocusNode,
+                  textInputAction: TextInputAction.search,
+                  onChanged: _setQuery,
+                  onSubmitted: (value) =>
+                      unawaited(widget.settings.addSearchHistory(value)),
                   decoration: InputDecoration(
                     hintText: l10n.searchHint,
                     prefixIcon: const Icon(Icons.search),
@@ -633,7 +656,7 @@ class _AudioLibraryPageState extends State<AudioLibraryPage> {
                             tooltip: l10n.clearSearch,
                             onPressed: () {
                               _searchController.clear();
-                              setState(() => _query = '');
+                              _setQuery('');
                             },
                             icon: const Icon(Icons.close),
                           ),
@@ -653,6 +676,29 @@ class _AudioLibraryPageState extends State<AudioLibraryPage> {
                     ),
                   ),
                 ),
+                if (_searchFocusNode.hasFocus &&
+                    widget.settings.searchHistory.isNotEmpty)
+                  Card(
+                    margin: const EdgeInsets.only(top: 4),
+                    child: Column(
+                      children: [
+                        for (final word in widget.settings.searchHistory)
+                          ListTile(
+                            dense: true,
+                            leading: const Icon(Icons.history),
+                            title: Text(word),
+                            onTap: () {
+                              _searchController.text = word;
+                              _searchController.selection =
+                                  TextSelection.collapsed(offset: word.length);
+                              _setQuery(word);
+                              unawaited(widget.settings.addSearchHistory(word));
+                              _searchFocusNode.unfocus();
+                            },
+                          ),
+                      ],
+                    ),
+                  ),
                 const SizedBox(height: 24),
                 Expanded(
                   child: widget.settings.audioDirectoryUri == null
