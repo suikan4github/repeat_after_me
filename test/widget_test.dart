@@ -6,6 +6,7 @@
 // tree, read text, and verify that the values of widget properties are correct.
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -13,10 +14,175 @@ import 'package:repeat_after_me/app_settings.dart';
 import 'package:repeat_after_me/l10n/generated/app_localizations.dart';
 import 'package:repeat_after_me/main.dart';
 import 'package:repeat_after_me/settings_page.dart';
+import 'package:saf_util/saf_util_platform_interface.dart';
+
+class _FakeSafUtil extends SafUtilPlatform {
+  int listCalls = 0;
+  int rootListCalls = 0;
+  bool failNextList = false;
+
+  @override
+  Future<List<SafDocumentFile>> list(String uri) async {
+    listCalls++;
+    if (uri == 'content://tree/music') rootListCalls++;
+    if (failNextList) {
+      failNextList = false;
+      throw Exception('folder unavailable');
+    }
+    SafDocumentFile file(String name, {bool isDir = false}) => SafDocumentFile(
+      uri: '$uri/$name',
+      name: name,
+      isDir: isDir,
+      length: 1,
+      lastModified: 1,
+    );
+    if (uri == 'content://tree/music') {
+      return [file('hello.m4a'), file('notes.txt'), file('sub', isDir: true)];
+    }
+    if (uri == 'content://tree/music/sub') {
+      return [file('nested.m4a'), file('deep', isDir: true)];
+    }
+    if (uri == 'content://tree/music/sub/deep') {
+      return [file('deep.m4a')];
+    }
+    return [];
+  }
+}
 
 void main() {
   setUp(() => SharedPreferences.setMockInitialValues({}));
 
+  group('with an audio folder selected', () {
+    late _FakeSafUtil safUtil;
+
+    setUp(() {
+      SharedPreferences.setMockInitialValues({
+        'settings.audioDirectoryUri': 'content://tree/music',
+        'settings.audioDirectoryName': 'music',
+      });
+      safUtil = _FakeSafUtil();
+      SafUtilPlatform.instance = safUtil;
+    });
+
+    testWidgets('lists only .m4a files directly in the folder', (
+      WidgetTester tester,
+    ) async {
+      tester.platformDispatcher.localesTestValue = const [Locale('en', 'US')];
+      addTearDown(tester.platformDispatcher.clearLocalesTestValue);
+
+      await tester.pumpWidget(const MyApp());
+      await tester.pumpAndSettle();
+
+      expect(find.text('hello'), findsOneWidget);
+      expect(find.text('notes'), findsNothing);
+      expect(find.text('sub'), findsNothing);
+    });
+
+    testWidgets('reloads the list from the refresh button', (
+      WidgetTester tester,
+    ) async {
+      tester.platformDispatcher.localesTestValue = const [Locale('en', 'US')];
+      addTearDown(tester.platformDispatcher.clearLocalesTestValue);
+
+      await tester.pumpWidget(const MyApp());
+      await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('Reload'));
+      await tester.pumpAndSettle();
+
+      expect(tester.takeException(), isNull);
+      expect(safUtil.rootListCalls, 2);
+      expect(find.text('hello'), findsOneWidget);
+    });
+
+    testWidgets('lists nested audio after selecting a subdirectory', (
+      WidgetTester tester,
+    ) async {
+      tester.platformDispatcher.localesTestValue = const [Locale('en', 'US')];
+      addTearDown(tester.platformDispatcher.clearLocalesTestValue);
+
+      await tester.pumpWidget(const MyApp());
+      await tester.pumpAndSettle();
+      expect(find.text('hello'), findsOneWidget);
+
+      await tester.tap(find.byType(DropdownButtonFormField<String>));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('/sub').last);
+      await tester.pumpAndSettle();
+
+      expect(find.text('nested'), findsOneWidget);
+      expect(find.text('hello'), findsNothing);
+      expect(find.text('/sub'), findsOneWidget);
+      expect((await AppSettings.load()).audioSubdirectoryPath, '/sub');
+    });
+
+    testWidgets('restores a selected nested directory after app restart', (
+      WidgetTester tester,
+    ) async {
+      tester.platformDispatcher.localesTestValue = const [Locale('en', 'US')];
+      addTearDown(tester.platformDispatcher.clearLocalesTestValue);
+      final settings = await AppSettings.load();
+      await settings.setAudioSubdirectoryPath('/sub/deep');
+
+      await tester.pumpWidget(const MyApp());
+      await tester.pumpAndSettle();
+      expect(find.text('deep'), findsOneWidget);
+      expect(find.text('/sub/deep'), findsOneWidget);
+    });
+
+    testWidgets('falls back to / and prompts when saved directory is missing', (
+      WidgetTester tester,
+    ) async {
+      tester.platformDispatcher.localesTestValue = const [Locale('en', 'US')];
+      addTearDown(tester.platformDispatcher.clearLocalesTestValue);
+      SharedPreferences.setMockInitialValues({
+        'settings.audioDirectoryUri': 'content://tree/music',
+        'settings.audioDirectoryName': 'music',
+        'settings.audioSubdirectoryPath': '/missing',
+      });
+
+      await tester.pumpWidget(const MyApp());
+      await tester.pumpAndSettle();
+
+      expect(
+        find.text(
+          'The saved folder is unavailable. Showing /; choose a folder again.',
+        ),
+        findsOneWidget,
+      );
+      expect(find.text('hello'), findsOneWidget);
+      expect(find.text('/'), findsOneWidget);
+      expect((await AppSettings.load()).audioSubdirectoryPath, '/');
+
+      await tester.tap(find.byType(DropdownButtonFormField<String>));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('/').last);
+      await tester.pumpAndSettle();
+      expect(
+        find.text(
+          'The saved folder is unavailable. Showing /; choose a folder again.',
+        ),
+        findsNothing,
+      );
+    });
+
+    testWidgets('recovers through the retry button after a load error', (
+      WidgetTester tester,
+    ) async {
+      tester.platformDispatcher.localesTestValue = const [Locale('en', 'US')];
+      addTearDown(tester.platformDispatcher.clearLocalesTestValue);
+      safUtil.failNextList = true;
+
+      await tester.pumpWidget(const MyApp());
+      await tester.pumpAndSettle();
+      expect(find.text('Could not load audio files'), findsOneWidget);
+
+      await tester.tap(find.text('Retry'));
+      await tester.pumpAndSettle();
+
+      expect(tester.takeException(), isNull);
+      expect(find.text('hello'), findsOneWidget);
+    });
+  });
   testWidgets('uses Japanese for Japanese system locales', (
     WidgetTester tester,
   ) async {
@@ -113,6 +279,23 @@ void main() {
   ) async {
     tester.platformDispatcher.localesTestValue = const [Locale('ja', 'JP')];
     addTearDown(tester.platformDispatcher.clearLocalesTestValue);
+    const packageInfoChannel = MethodChannel(
+      'dev.fluttercommunity.plus/package_info',
+    );
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(
+          packageInfoChannel,
+          (call) async => {
+            'appName': 'Repeat After Me',
+            'packageName': 'com.example.repeat_after_me',
+            'version': '1.0.0',
+            'buildNumber': '6',
+          },
+        );
+    addTearDown(
+      () => TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(packageInfoChannel, null),
+    );
 
     await tester.pumpWidget(const MyApp());
     await tester.pumpAndSettle();
@@ -121,7 +304,7 @@ void main() {
     await tester.tap(find.text('バージョン情報'));
     await tester.pumpAndSettle();
 
-    expect(find.text('0.2.2'), findsOneWidget);
+    expect(find.text('1.0.0'), findsOneWidget);
     expect(find.text('© 2026 HORIE Seiichi'), findsOneWidget);
   });
 

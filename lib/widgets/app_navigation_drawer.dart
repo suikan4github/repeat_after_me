@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:repeat_after_me/l10n/generated/app_localizations.dart';
 
 enum AppDestination { main, settings }
@@ -53,12 +54,14 @@ class AppNavigationDrawer extends StatelessWidget {
             ListTile(
               leading: const Icon(Icons.info_outline),
               title: Text(l10n.about),
-              onTap: () {
+              onTap: () async {
+                final packageInfo = await PackageInfo.fromPlatform();
+                if (!context.mounted) return;
                 Navigator.of(context).pop();
                 showAboutDialog(
                   context: context,
                   applicationName: l10n.appTitle,
-                  applicationVersion: '0.2.2',
+                  applicationVersion: packageInfo.version,
                   applicationLegalese: '© 2026 HORIE Seiichi',
                 );
               },

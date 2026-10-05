@@ -39,6 +39,22 @@ class AppLocalizationsJa extends AppLocalizations {
   String get about => 'バージョン情報';
 
   @override
+  String get settingsAudioFolder => '音声フォルダ';
+
+  @override
+  String get settingsAudioFolderNotSet => '未設定';
+
+  @override
+  String get settingsChooseAudioFolder => 'フォルダを選択';
+
+  @override
+  String get settingsClearAudioFolder => 'フォルダの選択を解除';
+
+  @override
+  String get savedSubdirectoryMissing =>
+      '保存されたフォルダが見つかりません。/ を表示しています。フォルダを選び直してください。';
+
+  @override
   String get settingsColorScheme => '配色';
 
   @override
@@ -102,16 +118,25 @@ class AppLocalizationsJa extends AppLocalizations {
   String get loadErrorTitle => '音声ファイルを読み込めません';
 
   @override
-  String get loadErrorMessage => '音声アセットを確認して、もう一度お試しください。';
+  String get loadErrorMessage => '音声フォルダを確認して、もう一度お試しください。';
 
   @override
   String get retry => '再試行';
 
   @override
+  String get refresh => '再読み込み';
+
+  @override
+  String get noFolderTitle => '音声フォルダが未選択です';
+
+  @override
+  String get noFolderMessage => '.m4a ファイルを含むフォルダを選択してください。';
+
+  @override
   String get emptyTitle => '音声ファイルはまだありません';
 
   @override
-  String get emptyMessage => 'assets/audio/ に .m4a ファイルを追加してください。';
+  String get emptyMessage => '選択したフォルダの直下に .m4a ファイルを追加してください。';
 
   @override
   String get noMatchesTitle => '一致する項目がありません';

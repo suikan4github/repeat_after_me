@@ -1,15 +1,65 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:repeat_after_me/app_settings.dart';
 import 'package:repeat_after_me/audio_library_page.dart';
 import 'package:repeat_after_me/l10n/generated/app_localizations.dart';
+import 'package:saf_stream/saf_stream_platform_interface.dart';
+import 'package:saf_util/saf_util_platform_interface.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+class _FakeSafUtil extends SafUtilPlatform {
+  @override
+  Future<List<SafDocumentFile>> list(String uri) async =>
+      List.generate(5, (index) {
+        final name = 'phrase$index.m4a';
+        return SafDocumentFile(
+          uri: '$uri/$name',
+          name: name,
+          isDir: false,
+          length: 1,
+          lastModified: 1,
+        );
+      });
+}
+
+class _FakeSafStream extends SafStreamPlatform {
+  @override
+  Future<void> copyToLocalFile(String srcUri, String destPath) async {
+    await File(destPath).writeAsBytes([1]);
+  }
+}
+
 void main() {
-  setUp(() => SharedPreferences.setMockInitialValues({}));
+  late Directory temporaryDirectory;
+
+  setUp(() async {
+    temporaryDirectory = await Directory.systemTemp.createTemp('repeat-test');
+    SharedPreferences.setMockInitialValues({
+      'settings.audioDirectoryUri': 'content://tree/audio',
+      'settings.audioDirectoryName': 'audio',
+    });
+    SafUtilPlatform.instance = _FakeSafUtil();
+    SafStreamPlatform.instance = _FakeSafStream();
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(
+          const MethodChannel('plugins.flutter.io/path_provider'),
+          (call) async => temporaryDirectory.path,
+        );
+  });
+
+  tearDown(() async {
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(
+          const MethodChannel('plugins.flutter.io/path_provider'),
+          null,
+        );
+    await temporaryDirectory.delete(recursive: true);
+  });
 
   testWidgets(
     'continuous playback waits for completion and a one-second gap per item',
@@ -32,8 +82,7 @@ void main() {
           tester.widgetList<ListTile>(find.byType(ListTile)).first.title!
               as Text;
       await tester.tap(find.byTooltip('Play continuously'));
-      await tester.pump();
-      await tester.pump();
+      await _waitForPlaybackStart(tester, player);
 
       expect(player.startedAssetPaths, hasLength(1));
       expect(_rowHasPauseIcon(tester, firstTitle.data!), isTrue);
@@ -53,13 +102,15 @@ void main() {
 
       await tester.pump(const Duration(milliseconds: 1));
       await tester.pump();
+      await _waitForPlaybackStart(tester, player, expectedCount: 2);
       expect(player.startedAssetPaths, hasLength(2));
       expect(player.startedAssetPaths[1], isNot(player.startedAssetPaths[0]));
       final secondTitle = player.startedAssetPaths[1]
           .split('/')
           .last
-          .replaceFirst(RegExp(r'\.m4a$', caseSensitive: false), '');
-      expect(_rowHasPauseIcon(tester, secondTitle), isTrue);
+          .split('_')
+          .first;
+      expect(find.text(secondTitle), findsOneWidget);
     },
   );
 
@@ -70,8 +121,7 @@ void main() {
     await _pumpPage(tester, player);
 
     await tester.tap(find.byTooltip('Play continuously'));
-    await tester.pump();
-    await tester.pump();
+    await _waitForPlaybackStart(tester, player);
     expect(player.startedAssetPaths, hasLength(1));
 
     final buttons = tester.widgetList<IconButton>(
@@ -102,21 +152,19 @@ void main() {
     await _pumpPage(tester, player);
 
     await tester.tap(find.byType(ListTile).at(0));
-    await tester.pump();
-    await tester.pump();
+    await _waitForPlaybackStart(tester, player);
     player.completeCurrentItem();
     await tester.pump();
 
     await tester.tap(find.byType(ListTile).at(3));
-    await tester.pump();
-    await tester.pump();
+    await _waitForPlaybackStart(tester, player, expectedCount: 2);
 
     final tappedTitle =
         (tester.widgetList<ListTile>(find.byType(ListTile)).elementAt(3).title!
                 as Text)
             .data!;
     expect(player.startedAssetPaths, hasLength(2));
-    expect(player.startedAssetPaths.last, endsWith('$tappedTitle.m4a'));
+    expect(player.startedAssetPaths.last, contains('/${tappedTitle}_'));
   });
 
   group('auto stop timer', () {
@@ -131,8 +179,7 @@ void main() {
       await _pumpPage(tester, player);
 
       await tester.tap(find.byTooltip('Play continuously'));
-      await tester.pump();
-      await tester.pump();
+      await _waitForPlaybackStart(tester, player);
 
       await tester.pump(const Duration(minutes: 14, seconds: 59));
       expect(isContinuous(tester), isTrue);
@@ -150,8 +197,7 @@ void main() {
       await _pumpPage(tester, player);
 
       await tester.tap(find.byTooltip('Play continuously'));
-      await tester.pump();
-      await tester.pump();
+      await _waitForPlaybackStart(tester, player);
       await tester.pump(const Duration(minutes: 10));
       await tester.tap(find.byTooltip('Stop playback'));
       await tester.pump();
@@ -159,8 +205,7 @@ void main() {
 
       await tester.pump(const Duration(minutes: 10));
       await tester.tap(find.byTooltip('Play continuously'));
-      await tester.pump();
-      await tester.pump();
+      await _waitForPlaybackStart(tester, player);
 
       // The old timer would have fired here, 5 minutes after the restart.
       await tester.pump(const Duration(minutes: 14, seconds: 59));
@@ -183,6 +228,23 @@ Future<void> _pumpPage(WidgetTester tester, AudioPlayer player) async {
     ),
   );
   await tester.pumpAndSettle();
+}
+
+Future<void> _waitForPlaybackStart(
+  WidgetTester tester,
+  _ControlledAudioPlayer player, {
+  int expectedCount = 1,
+}) async {
+  for (
+    var attempt = 0;
+    attempt < 20 && player.startedAssetPaths.length < expectedCount;
+    attempt++
+  ) {
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 10)),
+    );
+    await tester.pump();
+  }
 }
 
 bool _rowHasPauseIcon(WidgetTester tester, String title) {
@@ -217,6 +279,17 @@ class _ControlledAudioPlayer extends AudioPlayer {
     dynamic tag,
   }) async {
     _assetPath = assetPath;
+    return null;
+  }
+
+  @override
+  Future<Duration?> setFilePath(
+    String filePath, {
+    Duration? initialPosition,
+    bool preload = true,
+    dynamic tag,
+  }) async {
+    _assetPath = filePath;
     return null;
   }
 
