@@ -299,7 +299,7 @@ abstract class AppLocalizations {
   /// No description provided for @searchHint.
   ///
   /// In en, this message translates to:
-  /// **'Filter by name'**
+  /// **'Filter by name, title, album, or artist'**
   String get searchHint;
 
   /// No description provided for @clearSearch.
@@ -331,6 +331,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Reload'**
   String get refresh;
+
+  /// No description provided for @moreAudioActions.
+  ///
+  /// In en, this message translates to:
+  /// **'More audio actions'**
+  String get moreAudioActions;
+
+  /// No description provided for @rebuildMetadataIndex.
+  ///
+  /// In en, this message translates to:
+  /// **'Rebuild metadata index'**
+  String get rebuildMetadataIndex;
 
   /// No description provided for @noFolderTitle.
   ///

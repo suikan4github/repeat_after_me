@@ -7,6 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:repeat_after_me/app_settings.dart';
 import 'package:repeat_after_me/audio_library_page.dart';
+import 'package:repeat_after_me/audio_metadata_index.dart';
 import 'package:repeat_after_me/l10n/generated/app_localizations.dart';
 import 'package:saf_stream/saf_stream_platform_interface.dart';
 import 'package:saf_util/saf_util_platform_interface.dart';
@@ -32,6 +33,25 @@ class _FakeSafStream extends SafStreamPlatform {
   Future<void> copyToLocalFile(String srcUri, String destPath) async {
     await File(destPath).writeAsBytes([1]);
   }
+}
+
+class _FakeAudioMetadataIndex extends AudioMetadataIndex {
+  _FakeAudioMetadataIndex({this.tagsByUri = const {}});
+
+  final Map<String, AudioMetadataTags> tagsByUri;
+
+  @override
+  Future<Map<String, AudioMetadataTags>> synchronizeDirectory({
+    required String directoryUri,
+    required List<AudioMetadataFile> files,
+    required AudioMetadataExtractor extractMetadata,
+  }) async => {
+    for (final file in files)
+      file.uri: tagsByUri[file.uri] ?? const AudioMetadataTags(),
+  };
+
+  @override
+  Future<void> close() async {}
 }
 
 void main() {
@@ -73,6 +93,7 @@ void main() {
           home: AudioLibraryPage(
             settings: settings,
             playerFactory: () => player,
+            metadataIndex: _FakeAudioMetadataIndex(),
           ),
         ),
       );
@@ -167,6 +188,30 @@ void main() {
     expect(player.startedAssetPaths.last, contains('/${tappedTitle}_'));
   });
 
+  testWidgets('searches title, album, and artist metadata', (tester) async {
+    final player = _ControlledAudioPlayer();
+    await _pumpPage(
+      tester,
+      player,
+      metadataIndex: _FakeAudioMetadataIndex(
+        tagsByUri: const {
+          'content://tree/audio/phrase0.m4a': AudioMetadataTags(
+            title: 'Autumn Leaves',
+            album: 'Blue Note Sessions',
+            artist: 'Eva Cassidy',
+          ),
+        },
+      ),
+    );
+
+    for (final query in ['Autumn', 'Blue Note', 'Eva Cassidy']) {
+      await tester.enterText(find.byType(TextField), query);
+      await tester.pumpAndSettle();
+      expect(find.text('phrase0'), findsOneWidget, reason: 'query: $query');
+      expect(find.text('phrase1'), findsNothing, reason: 'query: $query');
+    }
+  });
+
   group('auto stop timer', () {
     bool isContinuous(WidgetTester tester) =>
         tester
@@ -218,13 +263,21 @@ void main() {
   });
 }
 
-Future<void> _pumpPage(WidgetTester tester, AudioPlayer player) async {
+Future<void> _pumpPage(
+  WidgetTester tester,
+  AudioPlayer player, {
+  AudioMetadataIndex? metadataIndex,
+}) async {
   final settings = await AppSettings.load();
   await tester.pumpWidget(
     MaterialApp(
       localizationsDelegates: AppLocalizations.localizationsDelegates,
       supportedLocales: AppLocalizations.supportedLocales,
-      home: AudioLibraryPage(settings: settings, playerFactory: () => player),
+      home: AudioLibraryPage(
+        settings: settings,
+        playerFactory: () => player,
+        metadataIndex: metadataIndex ?? _FakeAudioMetadataIndex(),
+      ),
     ),
   );
   await tester.pumpAndSettle();
