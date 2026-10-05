@@ -330,8 +330,8 @@ void main() {
           (call) async => {
             'appName': 'Repeat After Me',
             'packageName': 'com.example.repeat_after_me',
-            'version': '1.0.0',
-            'buildNumber': '6',
+            'version': '1.1.0',
+            'buildNumber': '7',
           },
         );
     addTearDown(
@@ -346,7 +346,7 @@ void main() {
     await tester.tap(find.text('バージョン情報'));
     await tester.pumpAndSettle();
 
-    expect(find.text('1.0.0'), findsOneWidget);
+    expect(find.text('1.1.0'), findsOneWidget);
     expect(find.text('© 2026 HORIE Seiichi'), findsOneWidget);
   });
 
