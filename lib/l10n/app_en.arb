@@ -13,6 +13,7 @@
   "settingsAudioFolderNotSet": "Not set",
   "settingsChooseAudioFolder": "Choose folder",
   "settingsClearAudioFolder": "Clear folder",
+  "savedSubdirectoryMissing": "The saved folder is unavailable. Showing /; choose a folder again.",
   "settingsColorScheme": "Color scheme",
   "settingsCustom": "Custom",
   "settingsFollowSystem": "Follow system",

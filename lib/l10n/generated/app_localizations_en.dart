@@ -51,6 +51,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settingsClearAudioFolder => 'Clear folder';
 
   @override
+  String get savedSubdirectoryMissing =>
+      'The saved folder is unavailable. Showing /; choose a folder again.';
+
+  @override
   String get settingsColorScheme => 'Color scheme';
 
   @override

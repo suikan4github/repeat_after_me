@@ -182,6 +182,12 @@ abstract class AppLocalizations {
   /// **'Clear folder'**
   String get settingsClearAudioFolder;
 
+  /// No description provided for @savedSubdirectoryMissing.
+  ///
+  /// In en, this message translates to:
+  /// **'The saved folder is unavailable. Showing /; choose a folder again.'**
+  String get savedSubdirectoryMissing;
+
   /// No description provided for @settingsColorScheme.
   ///
   /// In en, this message translates to:

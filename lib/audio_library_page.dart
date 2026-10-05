@@ -10,6 +10,7 @@ import 'package:repeat_after_me/settings_page.dart';
 import 'package:repeat_after_me/widgets/app_navigation_drawer.dart';
 import 'package:saf_stream/saf_stream.dart';
 import 'package:saf_util/saf_util.dart';
+import 'package:saf_util/saf_util_platform_interface.dart';
 
 class AudioLibraryPage extends StatefulWidget {
   const AudioLibraryPage({
@@ -32,8 +33,10 @@ class _AudioLibraryPageState extends State<AudioLibraryPage> {
   final _safUtil = SafUtil();
   final _safStream = SafStream();
   final _searchController = TextEditingController();
-  late Future<List<_AudioEntry>> _audioNamesFuture;
+  late Future<_AudioLibraryData> _audioLibraryFuture;
   String? _loadedDirectoryUri;
+  String _loadedSubdirectoryPath = '/';
+  bool _showSavedDirectoryError = false;
   AudioPlayer? _player;
   StreamSubscription<PlayerState>? _playerStateSubscription;
   String? _playingUri;
@@ -51,7 +54,7 @@ class _AudioLibraryPageState extends State<AudioLibraryPage> {
   @override
   void initState() {
     super.initState();
-    _audioNamesFuture = _loadAudioNames();
+    _audioLibraryFuture = _loadAudioLibrary();
     widget.settings.addListener(_onSettingsChanged);
   }
 
@@ -66,44 +69,132 @@ class _AudioLibraryPageState extends State<AudioLibraryPage> {
   }
 
   void _onSettingsChanged() {
-    if (widget.settings.audioDirectoryUri == _loadedDirectoryUri) return;
+    if (widget.settings.audioDirectoryUri == _loadedDirectoryUri &&
+        widget.settings.audioSubdirectoryPath == _loadedSubdirectoryPath) {
+      return;
+    }
+    if (widget.settings.audioDirectoryUri != _loadedDirectoryUri) {
+      _showSavedDirectoryError = false;
+    }
+    _resetPlaybackPosition();
     unawaited(_player?.stop());
     setState(() {
-      _playingUri = null;
-      _isPlaying = false;
-      _audioNamesFuture = _loadAudioNames();
+      _audioLibraryFuture = _loadAudioLibrary();
     });
   }
 
   void _reload() {
+    _resetPlaybackPosition();
+    unawaited(_player?.stop());
     setState(() {
-      _audioNamesFuture = _loadAudioNames();
+      _audioLibraryFuture = _loadAudioLibrary();
     });
   }
 
-  Future<List<_AudioEntry>> _loadAudioNames() async {
-    final directoryUri = widget.settings.audioDirectoryUri;
-    _loadedDirectoryUri = directoryUri;
-    if (directoryUri == null) return const [];
+  void _resetPlaybackPosition() {
+    _autoStopTimer?.cancel();
+    _playbackGeneration++;
+    _isContinuousPlaying = false;
+    _playingUri = null;
+    _isPlaying = false;
+    _lastUserPlayedAssetPath = null;
+    _lastContinuousEndedAssetPath = null;
+    _playbackActivityOrder = 0;
+    _lastUserPlaybackOrder = 0;
+    _lastContinuousEndOrder = 0;
+  }
 
-    final files = await _safUtil.list(directoryUri);
-    return files
-        .where(
-          (file) => !file.isDir && file.name.toLowerCase().endsWith(_extension),
-        )
-        .map(
-          (file) => _AudioEntry(
-            uri: file.uri,
-            name: file.name.substring(0, file.name.length - _extension.length),
-            length: file.length,
-            lastModified: file.lastModified,
-          ),
-        )
-        .toList()
-      ..sort(
-        (first, second) =>
-            first.name.toLowerCase().compareTo(second.name.toLowerCase()),
+  Future<void> _selectSubdirectory(String path) async {
+    setState(() => _showSavedDirectoryError = false);
+    await widget.settings.setAudioSubdirectoryPath(path);
+  }
+
+  Future<_AudioLibraryData> _loadAudioLibrary() async {
+    final rootUri = widget.settings.audioDirectoryUri;
+    _loadedDirectoryUri = rootUri;
+    _loadedSubdirectoryPath = widget.settings.audioSubdirectoryPath;
+    if (rootUri == null) return const _AudioLibraryData.empty();
+
+    final directories = <String, _AudioDirectory>{
+      '/': _AudioDirectory(path: '/', name: '/', uri: rootUri),
+    };
+    final contentsByUri = <String, List<SafDocumentFile>>{};
+    final visitedUris = <String>{rootUri};
+
+    Future<void> visitDirectory(String uri, String parentPath) async {
+      final children = await _safUtil.list(uri);
+      contentsByUri[uri] = children;
+      for (final child in children.where((item) => item.isDir)) {
+        if (!visitedUris.add(child.uri)) continue;
+        final path = parentPath == '/'
+            ? '/${child.name}'
+            : '$parentPath/${child.name}';
+        directories[path] = _AudioDirectory(
+          path: path,
+          name: child.name,
+          uri: child.uri,
+        );
+        await visitDirectory(child.uri, path);
+      }
+    }
+
+    final rootChildren = await _safUtil.list(rootUri);
+    contentsByUri[rootUri] = rootChildren;
+    for (final child in rootChildren.where((item) => item.isDir)) {
+      if (!visitedUris.add(child.uri)) continue;
+      final path = '/${child.name}';
+      directories[path] = _AudioDirectory(
+        path: path,
+        name: child.name,
+        uri: child.uri,
       );
+      await visitDirectory(child.uri, path);
+    }
+
+    var selectedPath = widget.settings.audioSubdirectoryPath;
+    if (!directories.containsKey(selectedPath)) {
+      _showSavedDirectoryError = true;
+      selectedPath = '/';
+      await widget.settings.setAudioSubdirectoryPath('/');
+    }
+    _loadedSubdirectoryPath = selectedPath;
+
+    final selectedDirectory = directories[selectedPath]!;
+    final files = contentsByUri[selectedDirectory.uri] ?? const [];
+    final entries =
+        files
+            .where(
+              (file) =>
+                  !file.isDir && file.name.toLowerCase().endsWith(_extension),
+            )
+            .map(
+              (file) => _AudioEntry(
+                uri: file.uri,
+                name: file.name.substring(
+                  0,
+                  file.name.length - _extension.length,
+                ),
+                length: file.length,
+                lastModified: file.lastModified,
+              ),
+            )
+            .toList()
+          ..sort(
+            (first, second) =>
+                first.name.toLowerCase().compareTo(second.name.toLowerCase()),
+          );
+
+    final sortedDirectories = directories.values.toList()
+      ..sort((first, second) {
+        if (first.path == '/') return -1;
+        if (second.path == '/') return 1;
+        return first.path.toLowerCase().compareTo(second.path.toLowerCase());
+      });
+    return _AudioLibraryData(
+      directories: sortedDirectories,
+      entries: entries,
+      selectedDirectory: selectedDirectory,
+    );
   }
 
   Future<Directory> _cacheDirectory() async {
@@ -214,7 +305,7 @@ class _AudioLibraryPageState extends State<AudioLibraryPage> {
     });
 
     try {
-      final allEntries = await _audioNamesFuture;
+      final allEntries = (await _audioLibraryFuture).entries;
       if (!_isCurrentContinuousPlayback(generation)) return;
       final query = _query.trim().toLowerCase();
       final entries = allEntries
@@ -362,13 +453,66 @@ class _AudioLibraryPageState extends State<AudioLibraryPage> {
                 Row(
                   children: [
                     Expanded(
-                      child: Text(
-                        l10n.audioLibraryTitle,
-                        style: Theme.of(context).textTheme.headlineMedium
-                            ?.copyWith(
-                              color: const Color(0xFF18312F),
-                              fontWeight: FontWeight.w700,
-                            ),
+                      child: FutureBuilder<_AudioLibraryData>(
+                        future: _audioLibraryFuture,
+                        builder: (context, snapshot) {
+                          if (!snapshot.hasData ||
+                              snapshot.data!.directories.isEmpty) {
+                            return Text(
+                              l10n.audioLibraryTitle,
+                              style: Theme.of(context).textTheme.headlineMedium
+                                  ?.copyWith(
+                                    color: const Color(0xFF18312F),
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                            );
+                          }
+                          return Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              DropdownButtonFormField<String>(
+                                value: snapshot.data!.selectedDirectory.path,
+                                isExpanded: true,
+                                decoration: const InputDecoration(
+                                  border: InputBorder.none,
+                                  contentPadding: EdgeInsets.zero,
+                                ),
+                                items: snapshot.data!.directories
+                                    .map(
+                                      (directory) => DropdownMenuItem<String>(
+                                        value: directory.path,
+                                        child: Text(
+                                          directory.path,
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: Theme.of(context)
+                                              .textTheme
+                                              .titleMedium
+                                              ?.copyWith(
+                                                color: const Color(0xFF18312F),
+                                                fontWeight: FontWeight.w700,
+                                              ),
+                                        ),
+                                      ),
+                                    )
+                                    .toList(),
+                                onChanged: _isContinuousPlaying
+                                    ? null
+                                    : (path) {
+                                        if (path != null) {
+                                          unawaited(_selectSubdirectory(path));
+                                        }
+                                      },
+                              ),
+                              if (_showSavedDirectoryError)
+                                Text(
+                                  l10n.savedSubdirectoryMissing,
+                                  style: Theme.of(context).textTheme.bodySmall
+                                      ?.copyWith(color: colors.error),
+                                ),
+                            ],
+                          );
+                        },
                       ),
                     ),
                     IconButton(
@@ -433,8 +577,8 @@ class _AudioLibraryPageState extends State<AudioLibraryPage> {
                             label: Text(l10n.settingsChooseAudioFolder),
                           ),
                         )
-                      : FutureBuilder<List<_AudioEntry>>(
-                          future: _audioNamesFuture,
+                      : FutureBuilder<_AudioLibraryData>(
+                          future: _audioLibraryFuture,
                           builder: (context, snapshot) {
                             if (snapshot.connectionState !=
                                 ConnectionState.done) {
@@ -471,8 +615,7 @@ class _AudioLibraryPageState extends State<AudioLibraryPage> {
                               );
                             }
 
-                            final allNames =
-                                snapshot.data ?? const <_AudioEntry>[];
+                            final allNames = snapshot.data!.entries;
                             final query = _query.trim().toLowerCase();
                             final filteredNames = allNames
                                 .where(
@@ -599,6 +742,35 @@ class _AudioEntry {
   final String name;
   final int length;
   final int lastModified;
+}
+
+class _AudioDirectory {
+  const _AudioDirectory({
+    required this.path,
+    required this.name,
+    required this.uri,
+  });
+
+  final String path;
+  final String name;
+  final String uri;
+}
+
+class _AudioLibraryData {
+  const _AudioLibraryData({
+    required this.directories,
+    required this.entries,
+    required this.selectedDirectory,
+  });
+
+  const _AudioLibraryData.empty()
+    : directories = const [],
+      entries = const [],
+      selectedDirectory = const _AudioDirectory(path: '/', name: '/', uri: '');
+
+  final List<_AudioDirectory> directories;
+  final List<_AudioEntry> entries;
+  final _AudioDirectory selectedDirectory;
 }
 
 class _MessageState extends StatelessWidget {

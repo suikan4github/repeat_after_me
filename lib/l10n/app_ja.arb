@@ -13,6 +13,7 @@
   "settingsAudioFolderNotSet": "未設定",
   "settingsChooseAudioFolder": "フォルダを選択",
   "settingsClearAudioFolder": "フォルダの選択を解除",
+  "savedSubdirectoryMissing": "保存されたフォルダが見つかりません。/ を表示しています。フォルダを選び直してください。",
   "settingsColorScheme": "配色",
   "settingsCustom": "カスタム",
   "settingsFollowSystem": "システムに合わせる",

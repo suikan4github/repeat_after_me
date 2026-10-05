@@ -17,11 +17,13 @@ import 'package:saf_util/saf_util_platform_interface.dart';
 
 class _FakeSafUtil extends SafUtilPlatform {
   int listCalls = 0;
+  int rootListCalls = 0;
   bool failNextList = false;
 
   @override
   Future<List<SafDocumentFile>> list(String uri) async {
     listCalls++;
+    if (uri == 'content://tree/music') rootListCalls++;
     if (failNextList) {
       failNextList = false;
       throw Exception('folder unavailable');
@@ -33,7 +35,16 @@ class _FakeSafUtil extends SafUtilPlatform {
       length: 1,
       lastModified: 1,
     );
-    return [file('hello.m4a'), file('notes.txt'), file('sub.m4a', isDir: true)];
+    if (uri == 'content://tree/music') {
+      return [file('hello.m4a'), file('notes.txt'), file('sub', isDir: true)];
+    }
+    if (uri == 'content://tree/music/sub') {
+      return [file('nested.m4a'), file('deep', isDir: true)];
+    }
+    if (uri == 'content://tree/music/sub/deep') {
+      return [file('deep.m4a')];
+    }
+    return [];
   }
 }
 
@@ -78,8 +89,79 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(tester.takeException(), isNull);
-      expect(safUtil.listCalls, 2);
+      expect(safUtil.rootListCalls, 2);
       expect(find.text('hello'), findsOneWidget);
+    });
+
+    testWidgets('lists nested audio after selecting a subdirectory', (
+      WidgetTester tester,
+    ) async {
+      tester.platformDispatcher.localesTestValue = const [Locale('en', 'US')];
+      addTearDown(tester.platformDispatcher.clearLocalesTestValue);
+
+      await tester.pumpWidget(const MyApp());
+      await tester.pumpAndSettle();
+      expect(find.text('hello'), findsOneWidget);
+
+      await tester.tap(find.byType(DropdownButtonFormField<String>));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('/sub').last);
+      await tester.pumpAndSettle();
+
+      expect(find.text('nested'), findsOneWidget);
+      expect(find.text('hello'), findsNothing);
+      expect(find.text('/sub'), findsOneWidget);
+      expect((await AppSettings.load()).audioSubdirectoryPath, '/sub');
+    });
+
+    testWidgets('restores a selected nested directory after app restart', (
+      WidgetTester tester,
+    ) async {
+      tester.platformDispatcher.localesTestValue = const [Locale('en', 'US')];
+      addTearDown(tester.platformDispatcher.clearLocalesTestValue);
+      final settings = await AppSettings.load();
+      await settings.setAudioSubdirectoryPath('/sub/deep');
+
+      await tester.pumpWidget(const MyApp());
+      await tester.pumpAndSettle();
+      expect(find.text('deep'), findsOneWidget);
+      expect(find.text('/sub/deep'), findsOneWidget);
+    });
+
+    testWidgets('falls back to / and prompts when saved directory is missing', (
+      WidgetTester tester,
+    ) async {
+      tester.platformDispatcher.localesTestValue = const [Locale('en', 'US')];
+      addTearDown(tester.platformDispatcher.clearLocalesTestValue);
+      SharedPreferences.setMockInitialValues({
+        'settings.audioDirectoryUri': 'content://tree/music',
+        'settings.audioDirectoryName': 'music',
+        'settings.audioSubdirectoryPath': '/missing',
+      });
+
+      await tester.pumpWidget(const MyApp());
+      await tester.pumpAndSettle();
+
+      expect(
+        find.text(
+          'The saved folder is unavailable. Showing /; choose a folder again.',
+        ),
+        findsOneWidget,
+      );
+      expect(find.text('hello'), findsOneWidget);
+      expect(find.text('/'), findsOneWidget);
+      expect((await AppSettings.load()).audioSubdirectoryPath, '/');
+
+      await tester.tap(find.byType(DropdownButtonFormField<String>));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('/').last);
+      await tester.pumpAndSettle();
+      expect(
+        find.text(
+          'The saved folder is unavailable. Showing /; choose a folder again.',
+        ),
+        findsNothing,
+      );
     });
 
     testWidgets('recovers through the retry button after a load error', (

@@ -51,6 +51,10 @@ class AppLocalizationsJa extends AppLocalizations {
   String get settingsClearAudioFolder => 'フォルダの選択を解除';
 
   @override
+  String get savedSubdirectoryMissing =>
+      '保存されたフォルダが見つかりません。/ を表示しています。フォルダを選び直してください。';
+
+  @override
   String get settingsColorScheme => '配色';
 
   @override
