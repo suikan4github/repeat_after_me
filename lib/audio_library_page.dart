@@ -1,10 +1,12 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:audio_metadata_reader/audio_metadata_reader.dart';
 import 'package:flutter/material.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:repeat_after_me/app_settings.dart';
+import 'package:repeat_after_me/audio_metadata_index.dart';
 import 'package:repeat_after_me/l10n/generated/app_localizations.dart';
 import 'package:repeat_after_me/settings_page.dart';
 import 'package:repeat_after_me/widgets/app_navigation_drawer.dart';
@@ -17,10 +19,14 @@ class AudioLibraryPage extends StatefulWidget {
     super.key,
     required this.settings,
     this.playerFactory,
+    this.metadataExtractor,
+    this.metadataIndex,
   });
 
   final AppSettings settings;
   final AudioPlayer Function()? playerFactory;
+  final AudioMetadataExtractor? metadataExtractor;
+  final AudioMetadataIndex? metadataIndex;
 
   @override
   State<AudioLibraryPage> createState() => _AudioLibraryPageState();
@@ -32,7 +38,9 @@ class _AudioLibraryPageState extends State<AudioLibraryPage> {
   static const _continuousPlaybackLimit = Duration(minutes: 15);
   final _safUtil = SafUtil();
   final _safStream = SafStream();
+  late final AudioMetadataIndex _metadataIndex;
   final _searchController = TextEditingController();
+  final _searchFocusNode = FocusNode();
   late Future<_AudioLibraryData> _audioLibraryFuture;
   String? _loadedDirectoryUri;
   String _loadedSubdirectoryPath = '/';
@@ -54,17 +62,35 @@ class _AudioLibraryPageState extends State<AudioLibraryPage> {
   @override
   void initState() {
     super.initState();
+    _metadataIndex = widget.metadataIndex ?? AudioMetadataIndex();
+    _query = widget.settings.searchQuery;
+    _searchController.text = _query;
+    _searchFocusNode.addListener(_onSearchFocusChanged);
     _audioLibraryFuture = _loadAudioLibrary();
     widget.settings.addListener(_onSettingsChanged);
+  }
+
+  void _onSearchFocusChanged() {
+    if (!_searchFocusNode.hasFocus) {
+      unawaited(widget.settings.addSearchHistory(_query));
+    }
+    setState(() {});
+  }
+
+  void _setQuery(String value) {
+    setState(() => _query = value);
+    unawaited(widget.settings.setSearchQuery(value));
   }
 
   @override
   void dispose() {
     _autoStopTimer?.cancel();
     widget.settings.removeListener(_onSettingsChanged);
+    _searchFocusNode.dispose();
     _searchController.dispose();
     unawaited(_playerStateSubscription?.cancel());
     unawaited(_player?.dispose());
+    if (widget.metadataIndex == null) unawaited(_metadataIndex.close());
     super.dispose();
   }
 
@@ -89,6 +115,21 @@ class _AudioLibraryPageState extends State<AudioLibraryPage> {
     setState(() {
       _audioLibraryFuture = _loadAudioLibrary();
     });
+  }
+
+  Future<void> _rebuildMetadataIndex() async {
+    try {
+      final library = await _audioLibraryFuture;
+      await _metadataIndex.invalidateDirectory(library.selectedDirectory.uri);
+      if (mounted) _reload();
+    } catch (error, stackTrace) {
+      debugPrint('Rebuilding audio metadata index failed: $error');
+      debugPrintStack(stackTrace: stackTrace);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(AppLocalizations.of(context)!.loadErrorMessage)),
+      );
+    }
   }
 
   void _resetPlaybackPosition() {
@@ -161,12 +202,26 @@ class _AudioLibraryPageState extends State<AudioLibraryPage> {
 
     final selectedDirectory = directories[selectedPath]!;
     final files = contentsByUri[selectedDirectory.uri] ?? const [];
+    final audioFiles = files
+        .where(
+          (file) => !file.isDir && file.name.toLowerCase().endsWith(_extension),
+        )
+        .map(
+          (file) => AudioMetadataFile(
+            uri: file.uri,
+            name: file.name,
+            length: file.length,
+            lastModified: file.lastModified,
+          ),
+        )
+        .toList();
+    final tagsByUri = await _metadataIndex.synchronizeDirectory(
+      directoryUri: selectedDirectory.uri,
+      files: audioFiles,
+      extractMetadata: widget.metadataExtractor ?? _extractMetadata,
+    );
     final entries =
-        files
-            .where(
-              (file) =>
-                  !file.isDir && file.name.toLowerCase().endsWith(_extension),
-            )
+        audioFiles
             .map(
               (file) => _AudioEntry(
                 uri: file.uri,
@@ -176,6 +231,7 @@ class _AudioLibraryPageState extends State<AudioLibraryPage> {
                 ),
                 length: file.length,
                 lastModified: file.lastModified,
+                metadata: tagsByUri[file.uri] ?? const AudioMetadataTags(),
               ),
             )
             .toList()
@@ -195,6 +251,41 @@ class _AudioLibraryPageState extends State<AudioLibraryPage> {
       entries: entries,
       selectedDirectory: selectedDirectory,
     );
+  }
+
+  Future<Map<String, AudioMetadataTags>> _extractMetadata(
+    List<AudioMetadataFile> files,
+  ) async {
+    final temporaryRoot = await getTemporaryDirectory();
+    final metadataDirectory = Directory('${temporaryRoot.path}/metadata_work');
+    await metadataDirectory.create(recursive: true);
+    final result = <String, AudioMetadataTags>{};
+
+    for (final source in files) {
+      final temporaryFile = File(
+        '${metadataDirectory.path}/${source.uri.hashCode}_${source.length}_'
+        '${source.lastModified}$_extension',
+      );
+      try {
+        await _safStream.copyToLocalFile(source.uri, temporaryFile.path);
+        final metadata = readMetadata(temporaryFile, getImage: false);
+        result[source.uri] = AudioMetadataTags(
+          title: metadata.title,
+          album: metadata.album,
+          artist: metadata.artist,
+        );
+      } catch (error, stackTrace) {
+        debugPrint(
+          'Audio metadata extraction failed for ${source.uri}: $error',
+        );
+        debugPrintStack(stackTrace: stackTrace);
+        result[source.uri] = const AudioMetadataTags();
+      } finally {
+        if (await temporaryFile.exists()) await temporaryFile.delete();
+      }
+    }
+
+    return result;
   }
 
   Future<Directory> _cacheDirectory() async {
@@ -242,6 +333,7 @@ class _AudioLibraryPageState extends State<AudioLibraryPage> {
   }
 
   Future<void> _togglePlayback(_AudioEntry entry) async {
+    _searchFocusNode.unfocus();
     final player = _getPlayer();
     final generation = ++_playbackGeneration;
     _autoStopTimer?.cancel();
@@ -296,6 +388,7 @@ class _AudioLibraryPageState extends State<AudioLibraryPage> {
   }
 
   Future<void> _startContinuousPlayback() async {
+    _searchFocusNode.unfocus();
     final generation = ++_playbackGeneration;
     final player = _getPlayer();
     _autoStopTimer?.cancel();
@@ -309,7 +402,7 @@ class _AudioLibraryPageState extends State<AudioLibraryPage> {
       if (!_isCurrentContinuousPlayback(generation)) return;
       final query = _query.trim().toLowerCase();
       final entries = allEntries
-          .where((entry) => entry.name.toLowerCase().contains(query))
+          .where((entry) => entry.matches(query))
           .toList();
       if (entries.isEmpty) {
         _autoStopTimer?.cancel();
@@ -440,6 +533,21 @@ class _AudioLibraryPageState extends State<AudioLibraryPage> {
               onPressed: _reload,
               icon: const Icon(Icons.refresh),
             ),
+          if (widget.settings.audioDirectoryUri != null)
+            PopupMenuButton<String>(
+              tooltip: l10n.moreAudioActions,
+              onSelected: (action) {
+                if (action == 'rebuildMetadataIndex') {
+                  unawaited(_rebuildMetadataIndex());
+                }
+              },
+              itemBuilder: (context) => [
+                PopupMenuItem<String>(
+                  value: 'rebuildMetadataIndex',
+                  child: Text(l10n.rebuildMetadataIndex),
+                ),
+              ],
+            ),
         ],
       ),
       body: Center(
@@ -534,7 +642,11 @@ class _AudioLibraryPageState extends State<AudioLibraryPage> {
                 const SizedBox(height: 20),
                 TextField(
                   controller: _searchController,
-                  onChanged: (value) => setState(() => _query = value),
+                  focusNode: _searchFocusNode,
+                  textInputAction: TextInputAction.search,
+                  onChanged: _setQuery,
+                  onSubmitted: (value) =>
+                      unawaited(widget.settings.addSearchHistory(value)),
                   decoration: InputDecoration(
                     hintText: l10n.searchHint,
                     prefixIcon: const Icon(Icons.search),
@@ -544,7 +656,7 @@ class _AudioLibraryPageState extends State<AudioLibraryPage> {
                             tooltip: l10n.clearSearch,
                             onPressed: () {
                               _searchController.clear();
-                              setState(() => _query = '');
+                              _setQuery('');
                             },
                             icon: const Icon(Icons.close),
                           ),
@@ -564,6 +676,29 @@ class _AudioLibraryPageState extends State<AudioLibraryPage> {
                     ),
                   ),
                 ),
+                if (_searchFocusNode.hasFocus &&
+                    widget.settings.searchHistory.isNotEmpty)
+                  Card(
+                    margin: const EdgeInsets.only(top: 4),
+                    child: Column(
+                      children: [
+                        for (final word in widget.settings.searchHistory)
+                          ListTile(
+                            dense: true,
+                            leading: const Icon(Icons.history),
+                            title: Text(word),
+                            onTap: () {
+                              _searchController.text = word;
+                              _searchController.selection =
+                                  TextSelection.collapsed(offset: word.length);
+                              _setQuery(word);
+                              unawaited(widget.settings.addSearchHistory(word));
+                              _searchFocusNode.unfocus();
+                            },
+                          ),
+                      ],
+                    ),
+                  ),
                 const SizedBox(height: 24),
                 Expanded(
                   child: widget.settings.audioDirectoryUri == null
@@ -618,10 +753,7 @@ class _AudioLibraryPageState extends State<AudioLibraryPage> {
                             final allNames = snapshot.data!.entries;
                             final query = _query.trim().toLowerCase();
                             final filteredNames = allNames
-                                .where(
-                                  (entry) =>
-                                      entry.name.toLowerCase().contains(query),
-                                )
+                                .where((entry) => entry.matches(query))
                                 .toList();
 
                             if (filteredNames.isEmpty) {
@@ -736,12 +868,17 @@ class _AudioEntry {
     required this.name,
     required this.length,
     required this.lastModified,
+    required this.metadata,
   });
 
   final String uri;
   final String name;
   final int length;
   final int lastModified;
+  final AudioMetadataTags metadata;
+
+  bool matches(String query) =>
+      name.toLowerCase().contains(query) || metadata.matches(query);
 }
 
 class _AudioDirectory {

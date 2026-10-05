@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:dynamic_color/dynamic_color.dart';
 import 'package:repeat_after_me/app_settings.dart';
+import 'package:repeat_after_me/audio_metadata_index.dart';
 import 'package:repeat_after_me/l10n/generated/app_localizations.dart';
 import 'package:repeat_after_me/audio_library_page.dart';
 
@@ -9,7 +10,9 @@ void main() {
 }
 
 class MyApp extends StatefulWidget {
-  const MyApp({super.key});
+  const MyApp({super.key, this.metadataIndex});
+
+  final AudioMetadataIndex? metadataIndex;
 
   @override
   State<MyApp> createState() => _MyAppState();
@@ -51,7 +54,10 @@ class _MyAppState extends State<MyApp> {
                 systemColorScheme: darkDynamic,
               ),
               themeMode: ThemeMode.system,
-              home: AudioLibraryPage(settings: settings),
+              home: AudioLibraryPage(
+                settings: settings,
+                metadataIndex: widget.metadataIndex,
+              ),
             ),
           );
         },

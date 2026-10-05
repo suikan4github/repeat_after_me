@@ -8,6 +8,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:repeat_after_me/audio_metadata_index.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:repeat_after_me/app_settings.dart';
@@ -49,11 +50,33 @@ class _FakeSafUtil extends SafUtilPlatform {
   }
 }
 
+class _FakeAudioMetadataIndex extends AudioMetadataIndex {
+  int invalidationCount = 0;
+  String? invalidatedDirectoryUri;
+
+  @override
+  Future<Map<String, AudioMetadataTags>> synchronizeDirectory({
+    required String directoryUri,
+    required List<AudioMetadataFile> files,
+    required AudioMetadataExtractor extractMetadata,
+  }) async => {for (final file in files) file.uri: const AudioMetadataTags()};
+
+  @override
+  Future<void> invalidateDirectory(String directoryUri) async {
+    invalidationCount++;
+    invalidatedDirectoryUri = directoryUri;
+  }
+
+  @override
+  Future<void> close() async {}
+}
+
 void main() {
   setUp(() => SharedPreferences.setMockInitialValues({}));
 
   group('with an audio folder selected', () {
     late _FakeSafUtil safUtil;
+    late _FakeAudioMetadataIndex metadataIndex;
 
     setUp(() {
       SharedPreferences.setMockInitialValues({
@@ -62,6 +85,7 @@ void main() {
       });
       safUtil = _FakeSafUtil();
       SafUtilPlatform.instance = safUtil;
+      metadataIndex = _FakeAudioMetadataIndex();
     });
 
     testWidgets('lists only .m4a files directly in the folder', (
@@ -70,7 +94,7 @@ void main() {
       tester.platformDispatcher.localesTestValue = const [Locale('en', 'US')];
       addTearDown(tester.platformDispatcher.clearLocalesTestValue);
 
-      await tester.pumpWidget(const MyApp());
+      await tester.pumpWidget(MyApp(metadataIndex: metadataIndex));
       await tester.pumpAndSettle();
 
       expect(find.text('hello'), findsOneWidget);
@@ -84,7 +108,7 @@ void main() {
       tester.platformDispatcher.localesTestValue = const [Locale('en', 'US')];
       addTearDown(tester.platformDispatcher.clearLocalesTestValue);
 
-      await tester.pumpWidget(const MyApp());
+      await tester.pumpWidget(MyApp(metadataIndex: metadataIndex));
       await tester.pumpAndSettle();
       await tester.tap(find.byTooltip('Reload'));
       await tester.pumpAndSettle();
@@ -94,13 +118,31 @@ void main() {
       expect(find.text('hello'), findsOneWidget);
     });
 
+    testWidgets('can rebuild the metadata index for the selected folder', (
+      WidgetTester tester,
+    ) async {
+      tester.platformDispatcher.localesTestValue = const [Locale('en', 'US')];
+      addTearDown(tester.platformDispatcher.clearLocalesTestValue);
+
+      await tester.pumpWidget(MyApp(metadataIndex: metadataIndex));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('More audio actions'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Rebuild metadata index'));
+      await tester.pumpAndSettle();
+
+      expect(metadataIndex.invalidationCount, 1);
+      expect(metadataIndex.invalidatedDirectoryUri, 'content://tree/music');
+      expect(find.text('hello'), findsOneWidget);
+    });
+
     testWidgets('lists nested audio after selecting a subdirectory', (
       WidgetTester tester,
     ) async {
       tester.platformDispatcher.localesTestValue = const [Locale('en', 'US')];
       addTearDown(tester.platformDispatcher.clearLocalesTestValue);
 
-      await tester.pumpWidget(const MyApp());
+      await tester.pumpWidget(MyApp(metadataIndex: metadataIndex));
       await tester.pumpAndSettle();
       expect(find.text('hello'), findsOneWidget);
 
@@ -123,7 +165,7 @@ void main() {
       final settings = await AppSettings.load();
       await settings.setAudioSubdirectoryPath('/sub/deep');
 
-      await tester.pumpWidget(const MyApp());
+      await tester.pumpWidget(MyApp(metadataIndex: metadataIndex));
       await tester.pumpAndSettle();
       expect(find.text('deep'), findsOneWidget);
       expect(find.text('/sub/deep'), findsOneWidget);
@@ -140,7 +182,7 @@ void main() {
         'settings.audioSubdirectoryPath': '/missing',
       });
 
-      await tester.pumpWidget(const MyApp());
+      await tester.pumpWidget(MyApp(metadataIndex: metadataIndex));
       await tester.pumpAndSettle();
 
       expect(
@@ -172,7 +214,7 @@ void main() {
       addTearDown(tester.platformDispatcher.clearLocalesTestValue);
       safUtil.failNextList = true;
 
-      await tester.pumpWidget(const MyApp());
+      await tester.pumpWidget(MyApp(metadataIndex: metadataIndex));
       await tester.pumpAndSettle();
       expect(find.text('Could not load audio files'), findsOneWidget);
 
@@ -196,7 +238,7 @@ void main() {
     expect(find.text('音声ライブラリ'), findsOneWidget);
     expect(
       tester.widget<TextField>(find.byType(TextField)).decoration!.hintText,
-      '絞り込み検索',
+      '名前・タイトル・アルバム・アーティストで検索',
     );
     expect(find.byTooltip('連続再生'), findsOneWidget);
     expect(find.byTooltip('再生を停止'), findsOneWidget);
@@ -219,7 +261,7 @@ void main() {
     expect(find.text('Your audio library'), findsOneWidget);
     expect(
       tester.widget<TextField>(find.byType(TextField)).decoration!.hintText,
-      'Filter by name',
+      'Filter by name, title, album, or artist',
     );
     expect(find.byTooltip('Play continuously'), findsOneWidget);
     expect(find.byTooltip('Stop playback'), findsOneWidget);
@@ -288,8 +330,8 @@ void main() {
           (call) async => {
             'appName': 'Repeat After Me',
             'packageName': 'com.example.repeat_after_me',
-            'version': '1.0.0',
-            'buildNumber': '6',
+            'version': '1.1.0',
+            'buildNumber': '7',
           },
         );
     addTearDown(
@@ -304,7 +346,7 @@ void main() {
     await tester.tap(find.text('バージョン情報'));
     await tester.pumpAndSettle();
 
-    expect(find.text('1.0.0'), findsOneWidget);
+    expect(find.text('1.1.0'), findsOneWidget);
     expect(find.text('© 2026 HORIE Seiichi'), findsOneWidget);
   });
 
@@ -351,4 +393,23 @@ void main() {
     expect(restored.seedColor, const Color(0xFF008577));
     expect(restored.schemeVariant, DynamicSchemeVariant.monochrome);
   });
+
+  test(
+    'keeps the five most recent distinct search words, newest first',
+    () async {
+      final settings = await AppSettings.load();
+      for (final word in ['a', 'b', 'c', 'd', 'e', 'f', ' ', 'c']) {
+        await settings.addSearchHistory(word);
+      }
+
+      expect(settings.searchHistory, ['c', 'f', 'e', 'd', 'b']);
+      expect((await AppSettings.load()).searchHistory, [
+        'c',
+        'f',
+        'e',
+        'd',
+        'b',
+      ]);
+    },
+  );
 }

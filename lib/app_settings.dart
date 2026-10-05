@@ -8,6 +8,10 @@ class AppSettings extends ChangeNotifier {
       _audioDirectoryName = _preferences.getString(_audioDirectoryNameKey),
       _audioSubdirectoryPath =
           _preferences.getString(_audioSubdirectoryPathKey) ?? '/',
+      _searchQuery = _preferences.getString(_searchQueryKey) ?? '',
+      _searchHistory = List.of(
+        _preferences.getStringList(_searchHistoryKey) ?? const <String>[],
+      ),
       _followSystemColors =
           _preferences.getBool(_followSystemColorsKey) ?? false,
       _seedColor = Color(
@@ -24,6 +28,9 @@ class AppSettings extends ChangeNotifier {
   static const _audioDirectoryUriKey = 'settings.audioDirectoryUri';
   static const _audioDirectoryNameKey = 'settings.audioDirectoryName';
   static const _audioSubdirectoryPathKey = 'settings.audioSubdirectoryPath';
+  static const _searchQueryKey = 'settings.searchQuery';
+  static const _searchHistoryKey = 'settings.searchHistory';
+  static const maxSearchHistory = 5;
   static const _defaultSeedColorValue = 0xFF1E90FF;
 
   final SharedPreferences _preferences;
@@ -31,6 +38,8 @@ class AppSettings extends ChangeNotifier {
   String? _audioDirectoryUri;
   String? _audioDirectoryName;
   String _audioSubdirectoryPath;
+  String _searchQuery;
+  final List<String> _searchHistory;
   bool _followSystemColors;
   Color _seedColor;
   DynamicSchemeVariant _schemeVariant;
@@ -39,6 +48,10 @@ class AppSettings extends ChangeNotifier {
   String? get audioDirectoryUri => _audioDirectoryUri;
   String? get audioDirectoryName => _audioDirectoryName;
   String get audioSubdirectoryPath => _audioSubdirectoryPath;
+  String get searchQuery => _searchQuery;
+
+  /// Recent search words, newest first.
+  List<String> get searchHistory => List.unmodifiable(_searchHistory);
   bool get followSystemColors => _followSystemColors;
   Color get seedColor => _seedColor;
   DynamicSchemeVariant get schemeVariant => _schemeVariant;
@@ -86,6 +99,24 @@ class AppSettings extends ChangeNotifier {
     _audioSubdirectoryPath = path;
     notifyListeners();
     await _preferences.setString(_audioSubdirectoryPathKey, path);
+  }
+
+  Future<void> setSearchQuery(String value) async {
+    if (_searchQuery == value) return;
+    _searchQuery = value;
+    await _preferences.setString(_searchQueryKey, value);
+  }
+
+  Future<void> addSearchHistory(String value) async {
+    final word = value.trim();
+    if (word.isEmpty) return;
+    _searchHistory
+      ..remove(word)
+      ..insert(0, word);
+    if (_searchHistory.length > maxSearchHistory) {
+      _searchHistory.removeRange(maxSearchHistory, _searchHistory.length);
+    }
+    await _preferences.setStringList(_searchHistoryKey, _searchHistory);
   }
 
   Future<void> _releasePermission(String uri) async {

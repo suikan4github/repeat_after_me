@@ -109,7 +109,7 @@ class AppLocalizationsJa extends AppLocalizations {
   String get settingsColorPurple => 'パープル';
 
   @override
-  String get searchHint => '絞り込み検索';
+  String get searchHint => '名前・タイトル・アルバム・アーティストで検索';
 
   @override
   String get clearSearch => '検索をクリア';
@@ -125,6 +125,12 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get refresh => '再読み込み';
+
+  @override
+  String get moreAudioActions => '音声操作';
+
+  @override
+  String get rebuildMetadataIndex => 'メタデータ索引を再作成';
 
   @override
   String get noFolderTitle => '音声フォルダが未選択です';

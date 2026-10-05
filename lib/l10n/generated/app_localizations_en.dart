@@ -109,7 +109,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settingsColorPurple => 'Purple';
 
   @override
-  String get searchHint => 'Filter by name';
+  String get searchHint => 'Filter by name, title, album, or artist';
 
   @override
   String get clearSearch => 'Clear search';
@@ -125,6 +125,12 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get refresh => 'Reload';
+
+  @override
+  String get moreAudioActions => 'More audio actions';
+
+  @override
+  String get rebuildMetadataIndex => 'Rebuild metadata index';
 
   @override
   String get noFolderTitle => 'No audio folder selected';
