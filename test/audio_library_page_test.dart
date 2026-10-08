@@ -135,6 +135,48 @@ void main() {
     },
   );
 
+  testWidgets('disables search filter changes during continuous playback', (
+    tester,
+  ) async {
+    final player = _ControlledAudioPlayer();
+    await _pumpPage(tester, player);
+
+    await tester.enterText(find.byType(TextField), 'phrase');
+    await tester.pump();
+    await tester.tap(find.byTooltip('Play continuously'));
+    await _waitForPlaybackStart(tester, player);
+    expect(player.startedAssetPaths, hasLength(1));
+
+    final searchField = tester.widget<TextField>(find.byType(TextField));
+    expect(searchField.enabled, isFalse);
+    expect(
+      tester
+          .widget<IconButton>(find.widgetWithIcon(IconButton, Icons.close))
+          .onPressed,
+      isNull,
+    );
+    expect(
+      tester
+          .widget<IconButton>(find.widgetWithIcon(IconButton, Icons.refresh))
+          .onPressed,
+      isNull,
+    );
+    expect(
+      tester
+          .widget<PopupMenuButton<String>>(find.byType(PopupMenuButton<String>))
+          .enabled,
+      isFalse,
+    );
+    expect(searchField.controller!.text, 'phrase');
+    expect(find.widgetWithText(ListTile, 'phrase0'), findsOneWidget);
+    expect(find.widgetWithText(ListTile, 'phrase1'), findsOneWidget);
+    expect((await AppSettings.load()).searchQuery, 'phrase');
+
+    await tester.tap(find.byTooltip('Stop playback'));
+    await tester.pump();
+    expect(tester.widget<TextField>(find.byType(TextField)).enabled, isTrue);
+  });
+
   testWidgets('disables item play buttons during continuous playback', (
     tester,
   ) async {

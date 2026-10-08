@@ -78,6 +78,7 @@ class _AudioLibraryPageState extends State<AudioLibraryPage> {
   }
 
   void _setQuery(String value) {
+    if (_isContinuousPlaying) return;
     setState(() => _query = value);
     unawaited(widget.settings.setSearchQuery(value));
   }
@@ -118,6 +119,7 @@ class _AudioLibraryPageState extends State<AudioLibraryPage> {
   }
 
   Future<void> _rebuildMetadataIndex() async {
+    if (_isContinuousPlaying) return;
     try {
       final library = await _audioLibraryFuture;
       await _metadataIndex.invalidateDirectory(library.selectedDirectory.uri);
@@ -530,12 +532,13 @@ class _AudioLibraryPageState extends State<AudioLibraryPage> {
           if (widget.settings.audioDirectoryUri != null)
             IconButton(
               tooltip: l10n.refresh,
-              onPressed: _reload,
+              onPressed: _isContinuousPlaying ? null : _reload,
               icon: const Icon(Icons.refresh),
             ),
           if (widget.settings.audioDirectoryUri != null)
             PopupMenuButton<String>(
               tooltip: l10n.moreAudioActions,
+              enabled: !_isContinuousPlaying,
               onSelected: (action) {
                 if (action == 'rebuildMetadataIndex') {
                   unawaited(_rebuildMetadataIndex());
@@ -643,6 +646,7 @@ class _AudioLibraryPageState extends State<AudioLibraryPage> {
                 TextField(
                   controller: _searchController,
                   focusNode: _searchFocusNode,
+                  enabled: !_isContinuousPlaying,
                   textInputAction: TextInputAction.search,
                   onChanged: _setQuery,
                   onSubmitted: (value) =>
@@ -654,10 +658,12 @@ class _AudioLibraryPageState extends State<AudioLibraryPage> {
                         ? null
                         : IconButton(
                             tooltip: l10n.clearSearch,
-                            onPressed: () {
-                              _searchController.clear();
-                              _setQuery('');
-                            },
+                            onPressed: _isContinuousPlaying
+                                ? null
+                                : () {
+                                    _searchController.clear();
+                                    _setQuery('');
+                                  },
                             icon: const Icon(Icons.close),
                           ),
                     filled: true,
