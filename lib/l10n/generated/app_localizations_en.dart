@@ -124,13 +124,23 @@ class AppLocalizationsEn extends AppLocalizations {
   String get retry => 'Retry';
 
   @override
-  String get refresh => 'Reload';
+  String get updateList => 'Update list';
 
   @override
-  String get moreAudioActions => 'More audio actions';
+  String get listActions => 'List actions';
 
   @override
-  String get rebuildMetadataIndex => 'Rebuild metadata index';
+  String get rebuildList => 'Rebuild list';
+
+  @override
+  String get rebuildListConfirmationMessage =>
+      'Rebuilding the list can take a while. Usually, \"Update list\" is all you need. Do you want to continue?';
+
+  @override
+  String get cancel => 'Cancel';
+
+  @override
+  String get confirmRebuild => 'Rebuild';
 
   @override
   String get noFolderTitle => 'No audio folder selected';

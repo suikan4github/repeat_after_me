@@ -78,6 +78,7 @@ class _AudioLibraryPageState extends State<AudioLibraryPage> {
   }
 
   void _setQuery(String value) {
+    if (_isContinuousPlaying) return;
     setState(() => _query = value);
     unawaited(widget.settings.setSearchQuery(value));
   }
@@ -118,6 +119,7 @@ class _AudioLibraryPageState extends State<AudioLibraryPage> {
   }
 
   Future<void> _rebuildMetadataIndex() async {
+    if (_isContinuousPlaying) return;
     try {
       final library = await _audioLibraryFuture;
       await _metadataIndex.invalidateDirectory(library.selectedDirectory.uri);
@@ -129,6 +131,29 @@ class _AudioLibraryPageState extends State<AudioLibraryPage> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(AppLocalizations.of(context)!.loadErrorMessage)),
       );
+    }
+  }
+
+  Future<void> _confirmRebuildMetadataIndex() async {
+    final l10n = AppLocalizations.of(context)!;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        content: Text(l10n.rebuildListConfirmationMessage),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: Text(l10n.cancel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: Text(l10n.confirmRebuild),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true && mounted) {
+      await _rebuildMetadataIndex();
     }
   }
 
@@ -528,23 +553,25 @@ class _AudioLibraryPageState extends State<AudioLibraryPage> {
         ),
         actions: [
           if (widget.settings.audioDirectoryUri != null)
-            IconButton(
-              tooltip: l10n.refresh,
-              onPressed: _reload,
-              icon: const Icon(Icons.refresh),
-            ),
-          if (widget.settings.audioDirectoryUri != null)
             PopupMenuButton<String>(
-              tooltip: l10n.moreAudioActions,
+              tooltip: l10n.listActions,
+              enabled: !_isContinuousPlaying,
               onSelected: (action) {
-                if (action == 'rebuildMetadataIndex') {
-                  unawaited(_rebuildMetadataIndex());
+                switch (action) {
+                  case 'updateList':
+                    _reload();
+                  case 'rebuildList':
+                    unawaited(_confirmRebuildMetadataIndex());
                 }
               },
               itemBuilder: (context) => [
                 PopupMenuItem<String>(
-                  value: 'rebuildMetadataIndex',
-                  child: Text(l10n.rebuildMetadataIndex),
+                  value: 'updateList',
+                  child: Text(l10n.updateList),
+                ),
+                PopupMenuItem<String>(
+                  value: 'rebuildList',
+                  child: Text(l10n.rebuildList),
                 ),
               ],
             ),
@@ -643,6 +670,7 @@ class _AudioLibraryPageState extends State<AudioLibraryPage> {
                 TextField(
                   controller: _searchController,
                   focusNode: _searchFocusNode,
+                  enabled: !_isContinuousPlaying,
                   textInputAction: TextInputAction.search,
                   onChanged: _setQuery,
                   onSubmitted: (value) =>
@@ -654,10 +682,12 @@ class _AudioLibraryPageState extends State<AudioLibraryPage> {
                         ? null
                         : IconButton(
                             tooltip: l10n.clearSearch,
-                            onPressed: () {
-                              _searchController.clear();
-                              _setQuery('');
-                            },
+                            onPressed: _isContinuousPlaying
+                                ? null
+                                : () {
+                                    _searchController.clear();
+                                    _setQuery('');
+                                  },
                             icon: const Icon(Icons.close),
                           ),
                     filled: true,

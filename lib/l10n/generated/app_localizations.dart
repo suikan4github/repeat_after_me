@@ -326,23 +326,41 @@ abstract class AppLocalizations {
   /// **'Retry'**
   String get retry;
 
-  /// No description provided for @refresh.
+  /// No description provided for @updateList.
   ///
   /// In en, this message translates to:
-  /// **'Reload'**
-  String get refresh;
+  /// **'Update list'**
+  String get updateList;
 
-  /// No description provided for @moreAudioActions.
+  /// No description provided for @listActions.
   ///
   /// In en, this message translates to:
-  /// **'More audio actions'**
-  String get moreAudioActions;
+  /// **'List actions'**
+  String get listActions;
 
-  /// No description provided for @rebuildMetadataIndex.
+  /// No description provided for @rebuildList.
   ///
   /// In en, this message translates to:
-  /// **'Rebuild metadata index'**
-  String get rebuildMetadataIndex;
+  /// **'Rebuild list'**
+  String get rebuildList;
+
+  /// No description provided for @rebuildListConfirmationMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Rebuilding the list can take a while. Usually, \"Update list\" is all you need. Do you want to continue?'**
+  String get rebuildListConfirmationMessage;
+
+  /// No description provided for @cancel.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel'**
+  String get cancel;
+
+  /// No description provided for @confirmRebuild.
+  ///
+  /// In en, this message translates to:
+  /// **'Rebuild'**
+  String get confirmRebuild;
 
   /// No description provided for @noFolderTitle.
   ///
