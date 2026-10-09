@@ -157,12 +157,6 @@ void main() {
     );
     expect(
       tester
-          .widget<IconButton>(find.widgetWithIcon(IconButton, Icons.refresh))
-          .onPressed,
-      isNull,
-    );
-    expect(
-      tester
           .widget<PopupMenuButton<String>>(find.byType(PopupMenuButton<String>))
           .enabled,
       isFalse,

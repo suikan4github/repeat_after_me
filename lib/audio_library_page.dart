@@ -134,6 +134,29 @@ class _AudioLibraryPageState extends State<AudioLibraryPage> {
     }
   }
 
+  Future<void> _confirmRebuildMetadataIndex() async {
+    final l10n = AppLocalizations.of(context)!;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        content: Text(l10n.rebuildListConfirmationMessage),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: Text(l10n.cancel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: Text(l10n.confirmRebuild),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true && mounted) {
+      await _rebuildMetadataIndex();
+    }
+  }
+
   void _resetPlaybackPosition() {
     _autoStopTimer?.cancel();
     _playbackGeneration++;
@@ -530,24 +553,25 @@ class _AudioLibraryPageState extends State<AudioLibraryPage> {
         ),
         actions: [
           if (widget.settings.audioDirectoryUri != null)
-            IconButton(
-              tooltip: l10n.refresh,
-              onPressed: _isContinuousPlaying ? null : _reload,
-              icon: const Icon(Icons.refresh),
-            ),
-          if (widget.settings.audioDirectoryUri != null)
             PopupMenuButton<String>(
-              tooltip: l10n.moreAudioActions,
+              tooltip: l10n.listActions,
               enabled: !_isContinuousPlaying,
               onSelected: (action) {
-                if (action == 'rebuildMetadataIndex') {
-                  unawaited(_rebuildMetadataIndex());
+                switch (action) {
+                  case 'updateList':
+                    _reload();
+                  case 'rebuildList':
+                    unawaited(_confirmRebuildMetadataIndex());
                 }
               },
               itemBuilder: (context) => [
                 PopupMenuItem<String>(
-                  value: 'rebuildMetadataIndex',
-                  child: Text(l10n.rebuildMetadataIndex),
+                  value: 'updateList',
+                  child: Text(l10n.updateList),
+                ),
+                PopupMenuItem<String>(
+                  value: 'rebuildList',
+                  child: Text(l10n.rebuildList),
                 ),
               ],
             ),

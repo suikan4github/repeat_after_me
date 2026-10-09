@@ -102,7 +102,7 @@ void main() {
       expect(find.text('sub'), findsNothing);
     });
 
-    testWidgets('reloads the list from the refresh button', (
+    testWidgets('updates the list from the list actions menu', (
       WidgetTester tester,
     ) async {
       tester.platformDispatcher.localesTestValue = const [Locale('en', 'US')];
@@ -110,7 +110,9 @@ void main() {
 
       await tester.pumpWidget(MyApp(metadataIndex: metadataIndex));
       await tester.pumpAndSettle();
-      await tester.tap(find.byTooltip('Reload'));
+      await tester.tap(find.byTooltip('List actions'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Update list'));
       await tester.pumpAndSettle();
 
       expect(tester.takeException(), isNull);
@@ -118,7 +120,7 @@ void main() {
       expect(find.text('hello'), findsOneWidget);
     });
 
-    testWidgets('can rebuild the metadata index for the selected folder', (
+    testWidgets('cancels rebuilding the list when dismissed', (
       WidgetTester tester,
     ) async {
       tester.platformDispatcher.localesTestValue = const [Locale('en', 'US')];
@@ -126,9 +128,35 @@ void main() {
 
       await tester.pumpWidget(MyApp(metadataIndex: metadataIndex));
       await tester.pumpAndSettle();
-      await tester.tap(find.byTooltip('More audio actions'));
+      await tester.tap(find.byTooltip('List actions'));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Rebuild metadata index'));
+      await tester.tap(find.text('Rebuild list'));
+      await tester.pumpAndSettle();
+
+      expect(
+        find.text(
+          'Rebuilding the list can take a while. Usually, "Update list" is all you need. Do you want to continue?',
+        ),
+        findsOneWidget,
+      );
+      await tester.tap(find.text('Cancel'));
+      await tester.pumpAndSettle();
+      expect(metadataIndex.invalidationCount, 0);
+    });
+
+    testWidgets('confirms rebuilding the list for the selected folder', (
+      WidgetTester tester,
+    ) async {
+      tester.platformDispatcher.localesTestValue = const [Locale('en', 'US')];
+      addTearDown(tester.platformDispatcher.clearLocalesTestValue);
+
+      await tester.pumpWidget(MyApp(metadataIndex: metadataIndex));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('List actions'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Rebuild list'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Rebuild'));
       await tester.pumpAndSettle();
 
       expect(metadataIndex.invalidationCount, 1);

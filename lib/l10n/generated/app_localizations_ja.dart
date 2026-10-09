@@ -124,13 +124,23 @@ class AppLocalizationsJa extends AppLocalizations {
   String get retry => '再試行';
 
   @override
-  String get refresh => '再読み込み';
+  String get updateList => 'リストを更新';
 
   @override
-  String get moreAudioActions => '音声操作';
+  String get listActions => 'リスト操作';
 
   @override
-  String get rebuildMetadataIndex => 'メタデータ索引を再作成';
+  String get rebuildList => 'リストを再構築';
+
+  @override
+  String get rebuildListConfirmationMessage =>
+      'リスト再構築は、時間がかかります。通常は『リストを更新』だけで十分です。実行しますか？';
+
+  @override
+  String get cancel => 'キャンセル';
+
+  @override
+  String get confirmRebuild => '再構築';
 
   @override
   String get noFolderTitle => '音声フォルダが未選択です';
