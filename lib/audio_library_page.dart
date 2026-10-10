@@ -908,7 +908,7 @@ class _AudioEntry {
   final AudioMetadataTags metadata;
 
   bool matches(String query) =>
-      name.toLowerCase().contains(query) || metadata.matches(query);
+      matchesSearchQuery(name, query) || metadata.matches(query);
 }
 
 class _AudioDirectory {

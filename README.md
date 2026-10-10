@@ -9,6 +9,7 @@ The app provides the following features:
 - Lists audio filenames without their `.m4a` extension
 - Lets you browse nested folders from the selected audio folder
 - Filters by filename or the title, album, or artist of `m4a` files as you type
+- In search filters, `?` matches any single character and `*` matches any string, including an empty one
 - Plays an audio file when you tap its list item; tap it again to pause
 - Plays the list continuously with the repeat button next to the title, and stops with the stop button
 - Continuous playback stops automatically 15 minutes after it starts

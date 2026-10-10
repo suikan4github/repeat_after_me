@@ -240,12 +240,50 @@ void main() {
       ),
     );
 
-    for (final query in ['Autumn', 'Blue Note', 'Eva Cassidy']) {
+    for (final query in [
+      'Autumn',
+      'Autumn ?eaves',
+      'Blue Note',
+      'Blue*Sessions',
+      'Eva Cassidy',
+      'Eva C?ssidy',
+    ]) {
       await tester.enterText(find.byType(TextField), query);
       await tester.pumpAndSettle();
       expect(find.text('phrase0'), findsOneWidget, reason: 'query: $query');
       expect(find.text('phrase1'), findsNothing, reason: 'query: $query');
     }
+  });
+
+  testWidgets('supports single- and multi-character search wildcards', (
+    tester,
+  ) async {
+    await _pumpPage(tester, _ControlledAudioPlayer());
+
+    final searchField = find.byType(TextField);
+
+    await tester.enterText(searchField, 'phrase?');
+    await tester.pumpAndSettle();
+    expect(find.byType(ListTile), findsNWidgets(5));
+
+    await tester.enterText(searchField, 'phrase??');
+    await tester.pumpAndSettle();
+    expect(find.byType(ListTile), findsNothing);
+
+    await tester.enterText(searchField, 'ph*rase1');
+    await tester.pumpAndSettle();
+    expect(find.widgetWithText(ListTile, 'phrase1'), findsOneWidget);
+    expect(find.byType(ListTile), findsOneWidget);
+
+    await tester.enterText(searchField, 'p*1');
+    await tester.pumpAndSettle();
+    expect(find.widgetWithText(ListTile, 'phrase1'), findsOneWidget);
+    expect(find.byType(ListTile), findsOneWidget);
+
+    await tester.enterText(searchField, '*hrase2*');
+    await tester.pumpAndSettle();
+    expect(find.widgetWithText(ListTile, 'phrase2'), findsOneWidget);
+    expect(find.byType(ListTile), findsOneWidget);
   });
 
   testWidgets('restores the saved search query on launch', (tester) async {
