@@ -29,8 +29,29 @@ class AudioMetadataTags {
       title,
       album,
       artist,
-    ].any((value) => value?.toLowerCase().contains(normalizedQuery) ?? false);
+    ].any(
+      (value) => value != null && matchesSearchQuery(value, normalizedQuery),
+    );
   }
+}
+
+bool matchesSearchQuery(String value, String query) {
+  final normalizedQuery = query.trim().toLowerCase();
+  if (normalizedQuery.isEmpty) return true;
+
+  if (!normalizedQuery.contains('*') && !normalizedQuery.contains('?')) {
+    return value.toLowerCase().contains(normalizedQuery);
+  }
+
+  final pattern = normalizedQuery.runes.map((rune) {
+    final character = String.fromCharCode(rune);
+    return switch (character) {
+      '*' => r'[\s\S]*',
+      '?' => r'[\s\S]',
+      _ => RegExp.escape(character),
+    };
+  }).join();
+  return RegExp(pattern, unicode: true).hasMatch(value.toLowerCase());
 }
 
 typedef AudioMetadataExtractor =
